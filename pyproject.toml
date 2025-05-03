@@ -20,6 +20,12 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Security",
 ]
+dependencies = [
+    "fastapi",
+    "fastapi-users[sqlalchemy]",
+    "sqlalchemy",
+    "aiosqlite"
+]
 
 [project.urls]
 Homepage = "https://github.com/beanone/keylin.git"
