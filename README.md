@@ -2,8 +2,8 @@
 
 [![Python Versions](https://img.shields.io/pypi/pyversions/keylin)](https://pypi.org/project/keylin)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://github.com/YOUR_GITHUB_ORG/keylin/actions/workflows/tests.yml/badge.svg)](https://github.com/YOUR_GITHUB_ORG/keylin/actions?query=workflow%3Atests)
-[![Coverage](https://codecov.io/gh/YOUR_GITHUB_ORG/keylin/branch/main/graph/badge.svg)](https://codecov.io/gh/YOUR_GITHUB_ORG/keylin)
+[![Tests](https://github.com/beanone/keylin/actions/workflows/tests.yml/badge.svg)](https://github.com/beanone/keylin/actions?query=workflow%3Atests)
+[![Coverage](https://codecov.io/gh/beanone/keylin/branch/main/graph/badge.svg)](https://codecov.io/gh/beanone/keylin)
 [![Code Quality](https://img.shields.io/badge/code%20style-ruff-000000)](https://github.com/astral-sh/ruff)
 [![PyPI version](https://img.shields.io/pypi/v/keylin)](https://pypi.org/project/keylin)
 
