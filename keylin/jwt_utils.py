@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 
-from .config import JWT_ALGORITHM, JWT_EXPIRE_SECONDS, JWT_SECRET
+from .config import settings
 
 
 def create_jwt_for_user(
@@ -22,11 +22,11 @@ def create_jwt_for_user(
         str: Encoded JWT token.
     """
     now = datetime.now(UTC)
-    exp = now + timedelta(seconds=expires_seconds or JWT_EXPIRE_SECONDS)
+    exp = now + timedelta(seconds=expires_seconds or settings.JWT_EXPIRE_SECONDS)
     payload = {
         "sub": str(user_id),
         "email": email,
         "exp": exp,
         "iat": now,
     }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
