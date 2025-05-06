@@ -1,16 +1,11 @@
-import os
-
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from .config import settings
 from .models import User
 
-# For production, set DATABASE_URL in the environment, e.g.:
-# export KEYLIN_DATABASE_URL='postgresql+asyncpg://user:pass@host/dbname'
-DATABASE_URL = os.environ.get("KEYLIN_DATABASE_URL", "sqlite+aiosqlite:///./test.db")
-
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(settings.DATABASE_URL, echo=True)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 

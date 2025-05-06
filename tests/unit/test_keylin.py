@@ -1,5 +1,4 @@
-import importlib
-import os
+import subprocess
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -47,21 +46,21 @@ def test_user_create_schema():
     assert user.full_name == "Test User"
 
 
-def test_get_jwt_strategy():
+def test_get_jwt_strategy(set_jwt_secret):
     strategy = auth.get_jwt_strategy()
     assert hasattr(strategy, "write_token")
     assert strategy.lifetime_seconds == 3600
     assert strategy.secret == "test-secret"
 
 
-def test_auth_backend_config():
+def test_auth_backend_config(set_jwt_secret):
     backend = auth.auth_backend
     assert backend.name == "jwt"
     assert hasattr(backend, "transport")
     assert hasattr(backend, "get_strategy")
 
 
-def test_user_manager_secrets():
+def test_user_manager_secrets(set_jwt_secret):
     manager = auth.UserManager(user_db=MagicMock())
     assert manager.reset_password_token_secret == "test-secret"
     assert manager.verification_token_secret == "test-secret"
@@ -117,13 +116,53 @@ async def test_get_user_db_yields_user_db():
         assert user_db == mock_db.return_value
 
 
-def test_auth_raises_if_secret_missing(monkeypatch):
-    # Remove the secret from the environment
-    monkeypatch.delenv("KEYLIN_JWT_SECRET", raising=False)
-    # Remove keylin.auth from sys.modules to force reload
-    sys.modules.pop("keylin.auth", None)
-    with pytest.raises(RuntimeError) as excinfo:
-        importlib.import_module("keylin.auth")
-    assert "KEYLIN_JWT_SECRET environment variable must be set" in str(excinfo.value)
-    # Restore for other tests
-    os.environ["KEYLIN_JWT_SECRET"] = "test-secret"
+def test_auth_raises_if_secret_missing():
+    code = """
+import os
+import sys
+sys.modules.pop("keylin.config", None)
+sys.modules.pop("keylin.auth", None)
+os.environ.pop("JWT_SECRET", None)
+try:
+    import keylin.auth
+except RuntimeError as e:
+    assert "JWT_SECRET environment variable must be set" in str(e)
+else:
+    raise AssertionError("Did not raise RuntimeError")
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_reset_and_verification_secret_default():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+s = Settings()
+assert s.RESET_PASSWORD_SECRET == "my-secret"
+assert s.VERIFICATION_SECRET == "my-secret"
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_reset_and_verification_secret_override():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+os.environ["RESET_PASSWORD_SECRET"] = "reset-secret"
+os.environ["VERIFICATION_SECRET"] = "verify-secret"
+s = Settings()
+assert s.RESET_PASSWORD_SECRET == "reset-secret"
+assert s.VERIFICATION_SECRET == "verify-secret"
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout

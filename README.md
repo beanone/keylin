@@ -77,10 +77,12 @@ app.include_router(fastapi_users.get_users_router(UserRead, UserRead), prefix="/
 ```
 
 ### Environment Variables (Required for Production)
-- `KEYLIN_JWT_SECRET`: Secret key for JWT signing (required)
-- `KEYLIN_RESET_PASSWORD_SECRET`: Secret for password reset tokens (optional, defaults to JWT secret)
-- `KEYLIN_VERIFICATION_SECRET`: Secret for verification tokens (optional, defaults to JWT secret)
-- `KEYLIN_DATABASE_URL`: SQLAlchemy DB URL (e.g., `postgresql+asyncpg://user:pass@host/dbname`)
+- `JWT_SECRET`: Secret key for JWT signing (**required**; application will raise an error if not set)
+- `RESET_PASSWORD_SECRET`: Secret for password reset tokens (optional, defaults to JWT secret)
+- `VERIFICATION_SECRET`: Secret for verification tokens (optional, defaults to JWT secret)
+- `DATABASE_URL`: SQLAlchemy DB URL (e.g., `postgresql+asyncpg://user:pass@host/dbname`)
+
+> **Note:** If `JWT_SECRET` is not set, the application will raise a `RuntimeError` at startup.
 
 ### Security & Deployment Best Practices
 - **CORS:** Configure CORS in your FastAPI app using `CORSMiddleware` to restrict allowed origins.
@@ -133,6 +135,7 @@ app.include_router(fastapi_users.get_users_router(UserRead, UserRead), prefix="/
 ### Testing
 - 100% code coverage with pytest and pytest-asyncio.
 - Pre-commit hooks for linting, formatting, and type checking.
+- The test suite sets `JWT_SECRET` automatically for all tests (see `tests/conftest.py`).
 - See `tests/unit/test_keylin.py` for example tests and mocking patterns.
 
 ### Setting Up the User Database

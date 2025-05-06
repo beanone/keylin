@@ -1,4 +1,3 @@
-import os
 import uuid
 
 from fastapi import Depends
@@ -9,23 +8,17 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 
+from .config import settings
 from .db import get_user_db
 from .models import User
-
-# Production: secrets must be set in environment variables
-JWT_SECRET = os.environ.get("KEYLIN_JWT_SECRET")
-if not JWT_SECRET:
-    raise RuntimeError(
-        "KEYLIN_JWT_SECRET environment variable must be set for JWT authentication."
-    )
-
-RESET_PASSWORD_SECRET = os.environ.get("KEYLIN_RESET_PASSWORD_SECRET", JWT_SECRET)
-VERIFICATION_SECRET = os.environ.get("KEYLIN_VERIFICATION_SECRET", JWT_SECRET)
 
 
 def get_jwt_strategy() -> JWTStrategy:
     """Return a JWTStrategy using the configured secret and 1 hour lifetime."""
-    return JWTStrategy(secret=JWT_SECRET, lifetime_seconds=3600)
+    return JWTStrategy(
+        secret=settings.JWT_SECRET,
+        lifetime_seconds=3600,
+    )
 
 
 auth_backend = AuthenticationBackend(
@@ -36,11 +29,11 @@ auth_backend = AuthenticationBackend(
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
-    """User manager with secrets loaded from environment variables."""
+    """User manager that uses secrets from Pydantic settings."""
 
     user_db_model = User
-    reset_password_token_secret = RESET_PASSWORD_SECRET
-    verification_token_secret = VERIFICATION_SECRET
+    reset_password_token_secret = settings.RESET_PASSWORD_SECRET
+    verification_token_secret = settings.VERIFICATION_SECRET
 
 
 async def get_user_manager(user_db=Depends(get_user_db)):
