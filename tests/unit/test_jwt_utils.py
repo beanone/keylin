@@ -1,7 +1,9 @@
 import jwt
 
-from keylin.config import settings
+from keylin.config import Settings
 from keylin.jwt_utils import create_jwt_for_user
+
+settings = Settings()
 
 
 # This test requires JWT_SECRET to be set, so we use the set_jwt_secret fixture.
