@@ -166,3 +166,135 @@ assert s.VERIFICATION_SECRET == "verify-secret"
         [sys.executable, "-c", code], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_allowed_origins_string():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+os.environ["ALLOWED_ORIGINS"] = '["http://localhost", "https://example.com"]'
+s = Settings()
+assert s.allowed_origins == ["http://localhost", "https://example.com"]
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_allowed_origins_list():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+os.environ["ALLOWED_ORIGINS"] = '["http://localhost", "https://example.com"]'
+s = Settings()
+assert s.allowed_origins == ["http://localhost", "https://example.com"]
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_allowed_origins_empty():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+os.environ["ALLOWED_ORIGINS"] = ""
+s = Settings()
+assert s.allowed_origins == []
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_allowed_origins_malformed():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+os.environ["ALLOWED_ORIGINS"] = '["http://localhost", "", "https://example.com"]'
+s = Settings()
+assert s.allowed_origins == ["http://localhost", "https://example.com"]
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_allowed_origins_comma_separated():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+os.environ["ALLOWED_ORIGINS"] = "http://localhost,https://example.com"
+s = Settings()
+assert s.allowed_origins == ["http://localhost", "https://example.com"]
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_allowed_origins_bracketed_comma_separated():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+os.environ["ALLOWED_ORIGINS"] = "[http://localhost, https://example.com]"
+s = Settings()
+assert s.allowed_origins == ["http://localhost", "https://example.com"]
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_allowed_origins_quoted_values():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+os.environ["ALLOWED_ORIGINS"] = "'http://localhost','https://example.com'"
+s = Settings()
+assert s.allowed_origins == ["http://localhost", "https://example.com"]
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_allowed_origins_non_string():
+    code = """
+from keylin.config import Settings
+s = Settings(JWT_SECRET="my-secret", ALLOWED_ORIGINS=123)  # Pass non-string directly
+assert s.allowed_origins == []
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_allowed_origins_whitespace():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+os.environ["ALLOWED_ORIGINS"] = "   "
+s = Settings()
+assert s.allowed_origins == []
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
