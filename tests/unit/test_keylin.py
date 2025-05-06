@@ -134,3 +134,35 @@ else:
         [sys.executable, "-c", code], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_reset_and_verification_secret_default():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+s = Settings()
+assert s.RESET_PASSWORD_SECRET == "my-secret"
+assert s.VERIFICATION_SECRET == "my-secret"
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_settings_reset_and_verification_secret_override():
+    code = """
+import os
+from keylin.config import Settings
+os.environ["JWT_SECRET"] = "my-secret"
+os.environ["RESET_PASSWORD_SECRET"] = "reset-secret"
+os.environ["VERIFICATION_SECRET"] = "verify-secret"
+s = Settings()
+assert s.RESET_PASSWORD_SECRET == "reset-secret"
+assert s.VERIFICATION_SECRET == "verify-secret"
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
