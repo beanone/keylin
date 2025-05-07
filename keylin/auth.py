@@ -8,9 +8,11 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 
-from .config import settings
+from .config import Settings
 from .db import get_user_db
 from .models import User
+
+settings = Settings()
 
 
 def get_jwt_strategy() -> JWTStrategy:

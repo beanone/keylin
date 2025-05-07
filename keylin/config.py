@@ -68,6 +68,3 @@ class Settings(BaseSettings):
             self.RESET_PASSWORD_SECRET = self.JWT_SECRET
         if self.VERIFICATION_SECRET is None:
             self.VERIFICATION_SECRET = self.JWT_SECRET
-
-
-settings = Settings()

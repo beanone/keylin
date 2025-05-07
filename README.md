@@ -132,10 +132,35 @@ app.include_router(fastapi_users.get_users_router(UserRead, UserRead), prefix="/
 - Keep the UI and backend in sync regarding user data shape.
 - **Tip:** If you need roles or permissions, add fields (e.g., `role`, `permissions`) to the model and schemas, and update your business logic accordingly.
 
+### Configuration Usage
+
+The `keylin.config.Settings` class provides all configuration via environment variables or a `.env` file. **There is no longer a global `settings` singleton.**
+
+- To use configuration, import and instantiate `Settings` directly:
+
+```python
+from keylin.config import Settings
+settings = Settings()
+```
+
+- If you are building a service that needs additional configuration, subclass `Settings`:
+
+```python
+from keylin.config import Settings as KeylinSettings
+
+class MyServiceSettings(KeylinSettings):
+    MY_SERVICE_API_KEY: str
+
+settings = MyServiceSettings()
+```
+
+- All environment variables must be set before instantiating `Settings`.
+- `JWT_SECRET` **must** be set, or a `RuntimeError` will be raised at startup.
+
 ### Testing
-- 100% code coverage with pytest and pytest-asyncio.
-- Pre-commit hooks for linting, formatting, and type checking.
 - The test suite sets `JWT_SECRET` automatically for all tests (see `tests/conftest.py`).
+- All code and tests should instantiate `Settings` directly as needed.
+- There is no global singleton; each test or module should create its own `Settings` instance if configuration is needed.
 - See `tests/unit/test_keylin.py` for example tests and mocking patterns.
 
 ### Setting Up the User Database

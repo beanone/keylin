@@ -2,8 +2,10 @@ from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from .config import settings
+from .config import Settings
 from .models import User
+
+settings = Settings()
 
 engine = create_async_engine(settings.DATABASE_URL, echo=True)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
