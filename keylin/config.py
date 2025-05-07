@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     model_config: ClassVar[dict[str, Any]] = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
+        "extra": "allow",
     }
 
     def __init__(self, **kwargs):
