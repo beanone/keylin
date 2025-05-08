@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import keylin
-from keylin import auth, db, models, schemas
+from keylin import auth, db, keylin_utils, models, schemas
 from keylin.config import Settings
 
 
@@ -257,3 +257,33 @@ def test_api_key_service_id_value_error():
             name="Empty Service ID",
             service_id="",
         )
+
+
+def test_generate_api_key_length_and_charset():
+    key = keylin_utils.generate_api_key(50)
+    assert isinstance(key, str)
+    assert len(key) == 50
+    assert all(c.isalnum() for c in key)
+
+
+def test_hash_and_verify_api_key():
+    key = "testapikey123"
+    key_hash = keylin_utils.hash_api_key(key)
+    assert isinstance(key_hash, str)
+    assert len(key_hash) == 64  # SHA-256 hex digest
+    assert keylin_utils.verify_api_key_hash(key, key_hash)
+    assert not keylin_utils.verify_api_key_hash("wrongkey", key_hash)
+
+
+def test_create_api_key_record():
+    user_id = "user-uuid"
+    service_id = "service-uuid"
+    api_key, record = keylin_utils.create_api_key_record(
+        user_id=user_id, service_id=service_id, name="Test Key"
+    )
+    assert isinstance(api_key, str)
+    assert isinstance(record, models.APIKey)
+    assert record.user_id == user_id
+    assert record.service_id == service_id
+    assert record.name == "Test Key"
+    assert keylin_utils.verify_api_key_hash(api_key, record.key_hash)
