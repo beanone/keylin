@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import keylin
-from keylin import auth, db, models, schemas
+from keylin import auth, db, keylin_utils, models, schemas
 from keylin.config import Settings
 
 
@@ -205,3 +205,85 @@ def test_settings_allowed_origins_whitespace(monkeypatch):
     monkeypatch.setenv("ALLOWED_ORIGINS", "   ")
     s = Settings()
     assert s.allowed_origins == []
+
+
+def test_api_key_model_fields():
+    api_key = models.APIKey(
+        id="123e4567-e89b-12d3-a456-426614174001",
+        user_id="123e4567-e89b-12d3-a456-426614174000",
+        key_hash="hashedkey",
+        name="Test Key",
+        service_id="graph_reader_api",
+    )
+    assert api_key.id == "123e4567-e89b-12d3-a456-426614174001"
+    assert api_key.user_id == "123e4567-e89b-12d3-a456-426614174000"
+    assert api_key.key_hash == "hashedkey"
+    assert api_key.name == "Test Key"
+    assert api_key.service_id == "graph_reader_api"
+    assert api_key.status == "active"
+    assert api_key.expires_at is None
+    assert api_key.last_used_at is None
+    assert api_key.__tablename__ == "api_keys"
+
+
+def test_api_key_requires_service_id():
+    with pytest.raises(TypeError):
+        models.APIKey(
+            id="123e4567-e89b-12d3-a456-426614174002",
+            user_id="123e4567-e89b-12d3-a456-426614174000",
+            key_hash="hashedkey2",
+            name="No Service ID",
+        )
+
+
+def test_api_key_service_id_value_error():
+    import pytest
+
+    # Passing None as service_id
+    with pytest.raises(ValueError):
+        models.APIKey(
+            id="123e4567-e89b-12d3-a456-426614174003",
+            user_id="123e4567-e89b-12d3-a456-426614174000",
+            key_hash="hashedkey3",
+            name="No Service ID",
+            service_id=None,
+        )
+    # Passing empty string as service_id
+    with pytest.raises(ValueError):
+        models.APIKey(
+            id="123e4567-e89b-12d3-a456-426614174004",
+            user_id="123e4567-e89b-12d3-a456-426614174000",
+            key_hash="hashedkey4",
+            name="Empty Service ID",
+            service_id="",
+        )
+
+
+def test_generate_api_key_length_and_charset():
+    key = keylin_utils.generate_api_key(50)
+    assert isinstance(key, str)
+    assert len(key) == 50
+    assert all(c.isalnum() for c in key)
+
+
+def test_hash_and_verify_api_key():
+    key = "testapikey123"
+    key_hash = keylin_utils.hash_api_key(key)
+    assert isinstance(key_hash, str)
+    assert len(key_hash) == 64  # SHA-256 hex digest
+    assert keylin_utils.verify_api_key_hash(key, key_hash)
+    assert not keylin_utils.verify_api_key_hash("wrongkey", key_hash)
+
+
+def test_create_api_key_record():
+    user_id = "user-uuid"
+    service_id = "service-uuid"
+    api_key, record = keylin_utils.create_api_key_record(
+        user_id=user_id, service_id=service_id, name="Test Key"
+    )
+    assert isinstance(api_key, str)
+    assert isinstance(record, models.APIKey)
+    assert record.user_id == user_id
+    assert record.service_id == service_id
+    assert record.name == "Test Key"
+    assert keylin_utils.verify_api_key_hash(api_key, record.key_hash)
