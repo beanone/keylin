@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import Column, DateTime, ForeignKey, String
+from sqlalchemy import Column, DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -13,12 +13,21 @@ class Base(DeclarativeBase):
 class User(SQLAlchemyBaseUserTableUUID, Base):  # type: ignore[misc, valid-type]
     __tablename__ = "user"
     full_name = Column(String, nullable=True)
+    user_id_str = Column(String(36), unique=True, nullable=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ensure user_id_str is always the string version of id
+        self.user_id_str = str(self.id)
 
 
 class APIKey(Base):
     __tablename__ = "api_keys"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("user.id"), nullable=False)
+    # Use user_id as the foreign key for cross-database compatibility
+    user_id = Column(
+        String(36), ForeignKey("user.user_id_str", ondelete="CASCADE"), nullable=False
+    )
     key_hash = Column(String, nullable=False, unique=True)
     name = Column(String)
     created_at = Column(DateTime, default=datetime.now(UTC))
@@ -26,10 +35,11 @@ class APIKey(Base):
     status = Column(String, default="active")
     expires_at = Column(DateTime, nullable=True)
     last_used_at = Column(DateTime, nullable=True)
+    __table_args__ = (Index("ix_api_keys_user_id", "user_id"),)
 
     def __init__(
         self,
-        user_id: str,
+        user_id: str,  # Now expects string version of user id
         key_hash: str,
         service_id: str,
         name: str | None = None,
