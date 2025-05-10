@@ -101,7 +101,9 @@ async def test_get_async_session_yields_session():
 
     mock_session = AsyncMock()
     with patch.object(
-        db, "async_session_maker", return_value=AsyncSessionContextManager(mock_session)
+        db.DBState,
+        "async_session_maker",
+        return_value=AsyncSessionContextManager(mock_session),
     ):
         gen = db.get_async_session()
         session = await gen.__anext__()
