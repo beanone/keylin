@@ -37,7 +37,7 @@ async def test_create_api_key(fake_user_id, fake_api_key_instance, monkeypatch):
 
     # Patch create_api_key_record to return our fake instance
     monkeypatch.setattr(
-        "keylin.apikey_handler.create_api_key_record",
+        "keylin.apikey_manager.create_api_key_record",
         lambda **kwargs: ("plaintext_example_key", fake_api_key_instance),
     )
 
