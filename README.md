@@ -100,6 +100,99 @@ app.include_router(fastapi_users.get_register_router(UserRead, UserCreate), pref
 app.include_router(fastapi_users.get_users_router(UserRead, UserRead), prefix="/users", tags=["users"])
 ```
 
+### Configuring Email Sending (for Password Reset & Verification)
+
+The `keylin` library's `UserManager` supports sending emails for password resets and email verifications. This feature is optional and depends on you providing an email sending implementation.
+
+**1. Email Sender Interface:**
+
+`keylin` defines a protocol for the email sender:
+```python
+# keylin.auth.EmailSenderCallable
+class EmailSenderCallable(Protocol):
+    async def __call__(self, *, to_email: str, token: str) -> None:
+        ...
+```
+Your custom email sender function must match this signature. It will receive the recipient's email and the generated token (for password reset or email verification). Your implementation is responsible for:
+- Constructing the full email content (subject and body).
+- Using the provided `token` and your application's `frontend_url` (from your own settings) to create the clickable link within the email body.
+- Actually sending the email using your preferred email service (e.g., SendGrid, SES, SMTP).
+
+**2. Default Placeholder:**
+
+By default, `keylin` uses a placeholder email sender that logs a warning and does not send any emails. This is located at `keylin.keylin_utils.default_keylin_email_sender`.
+
+**3. Enabling Email Features:**
+
+For password reset and email verification features to be enabled in `keylin` (and for `fastapi-users` to expose the related routes):
+- You **must** provide a working email sender implementation.
+- Your `keylin.config.Settings` object (or a subclass used by your application) **must** have the `RESET_PASSWORD_SECRET` and `VERIFICATION_SECRET` attributes set (they default to `JWT_SECRET` if not explicitly provided).
+
+**4. Injecting Your Custom Email Sender:**
+
+To use your own email sending logic, you'll override the default dependency in your FastAPI application setup:
+
+```python
+# In your main FastAPI application file (e.g., app/main.py or src/your_project/main.py)
+from fastapi import FastAPI
+from keylin.auth import fastapi_users, auth_backend # From keylin library
+from keylin.schemas import UserRead, UserCreate    # From keylin library
+from keylin import keylin_utils                    # To access the default sender for overriding
+
+# 1. Define your custom email sender function
+# (This could be in a separate services/email.py module in your project)
+async def my_custom_email_sender(*, to_email: str, token: str) -> None:
+    # Example: (Replace with your actual email sending logic)
+    # from your_project.config import my_app_settings # Your app's specific settings
+    # frontend_url = my_app_settings.FRONTEND_APP_URL
+    # For password reset, the link might be:
+    # reset_link = f"{frontend_url}/auth/reset-password?token={token}"
+    # For email verification, the link might be:
+    # verify_link = f"{frontend_url}/auth/verify-email?token={token}"
+
+    # You'll need to determine if it's a password reset or verification email.
+    # One way is to have separate override functions or add a context/type to EmailSenderCallable.
+    # For simplicity here, we'll just log.
+    print(f"Simulating email to {to_email} with token {token}. Link would use your frontend_url.")
+    #
+    # IMPORTANT: This example is simplified. Your actual sender will need to know
+    # whether to send a password reset or an email verification email.
+    # You might need to adjust the EmailSenderCallable protocol in keylin or
+    # use two different dependency overrides if your email content differs significantly.
+    # Alternatively, the token itself could be inspected or you might use different
+    # endpoint handlers in your app that call different UserManager methods.
+
+app = FastAPI()
+
+# 2. Override the default email sender dependency
+app.dependency_overrides[keylin_utils.default_keylin_email_sender] = my_custom_email_sender
+
+# 3. Include fastapi-users routers (these will now use your_custom_email_sender)
+app.include_router(fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"])
+app.include_router(fastapi_users.get_register_router(UserRead, UserCreate), prefix="/auth", tags=["auth"])
+app.include_router(fastapi_users.get_users_router(UserRead, UserRead), prefix="/users", tags=["users"])
+
+# Add password reset and verification routers from fastapi-users
+# These will only be active if the corresponding secrets are set in UserManager
+# (which depends on an email_sender being configured)
+app.include_router(fastapi_users.get_reset_password_router(), prefix="/auth", tags=["auth"])
+app.include_router(fastapi_users.get_verify_router(UserRead), prefix="/auth", tags=["auth"])
+
+# Your application's settings (e.g., from keylin.config.Settings or a subclass)
+# should define FRONTEND_APP_URL if your custom email sender needs it.
+# Keylin's UserManager enables password/verification features if an email_sender
+# is provided and the necessary token secrets are available.
+```
+
+**Important Note on Email Content:**
+The `EmailSenderCallable` interface in `keylin` currently passes only `to_email` and `token`. Your custom sender implementation will need to:
+- Determine if the token is for password reset or email verification to customize the subject and body. This might involve:
+    - Having separate sender functions and overriding them for `fastapi_users.get_reset_password_router()` and `fastapi_users.get_verify_router()` if `fastapi-users` allows such granular overrides for its internal `UserManager` calls (this is advanced).
+    - A simpler approach for the library user: your application might need to store some context when the token is generated, or the token itself could be structured to indicate its purpose (though this is less common for `fastapi-users` tokens).
+    - Alternatively, the `keylin.auth.EmailSenderCallable` protocol could be extended in future versions of `keylin` to include an `email_type` (e.g., "password_reset", "email_verification") if more direct support from the library is desired. For now, the injected sender takes on this responsibility.
+
+This setup ensures that `keylin` remains decoupled from specific email sending implementations and URL structures, while providing the necessary hooks for downstream applications to integrate their own email services.
+
 ### Environment Variables (Required for Production)
 - `JWT_SECRET`: Secret key for JWT signing (**required**; application will raise an error if not set)
 - `RESET_PASSWORD_SECRET`: Secret for password reset tokens (optional, defaults to JWT secret)
