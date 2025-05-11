@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import Column, DateTime, ForeignKey, Index, String, event
+from sqlalchemy import UUID, Column, DateTime, ForeignKey, Index, String, event
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -12,6 +12,7 @@ class Base(DeclarativeBase):
 
 class User(SQLAlchemyBaseUserTableUUID, Base):  # type: ignore[misc, valid-type]
     __tablename__ = "user"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     full_name = Column(String, nullable=True)
     user_id_str = Column(String(36), unique=True, nullable=False)
 
