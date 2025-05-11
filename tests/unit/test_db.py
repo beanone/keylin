@@ -22,6 +22,14 @@ async def test_lifespan_creates_tables_when_missing(monkeypatch):
         db, "Settings", lambda: MagicMock(DATABASE_URL="sqlite+aiosqlite:///test.db")
     )
 
+    # Patch session.execute to return a mock result with scalars().first() async
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.first = AsyncMock(return_value=None)
+    mock_result.scalars.return_value = mock_scalars
+    monkeypatch.setattr(db, "add_admin_user", AsyncMock())
+    monkeypatch.setattr(db, "AsyncSession", MagicMock())
+
     # Simulate tables do not exist
     def check_tables_exist(sync_conn):
         return False
@@ -56,6 +64,13 @@ async def test_lifespan_skips_creation_when_tables_exist(monkeypatch):
         db, "Settings", lambda: MagicMock(DATABASE_URL="sqlite+aiosqlite:///test.db")
     )
 
+    # Patch session.execute to return a mock result with scalars().first() async
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.first = AsyncMock(return_value=None)
+    mock_result.scalars.return_value = mock_scalars
+    monkeypatch.setattr(db, "add_admin_user", AsyncMock())
+    monkeypatch.setattr(db, "AsyncSession", MagicMock())
     # Simulate tables exist
     mock_run_sync.side_effect = [True]
 
@@ -102,6 +117,13 @@ async def test_lifespan_sets_dbstate(monkeypatch):
             ADMIN_FULL_NAME="Admin",
         ),
     )
+    # Patch session.execute to return a mock result with scalars().first() async
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.first = AsyncMock(return_value=None)
+    mock_result.scalars.return_value = mock_scalars
+    monkeypatch.setattr(db, "add_admin_user", AsyncMock())
+    monkeypatch.setattr(db, "AsyncSession", MagicMock())
     mock_run_sync.side_effect = [True]
 
     async with db.lifespan():
@@ -175,6 +197,12 @@ def test_lifespan_check_tables_exist_integration(monkeypatch):
     db.DBState.engine = None
     db.DBState.async_session_maker = None
 
+    # Patch add_admin_user to avoid TypeError in integration
+    async def dummy_add_admin_user(session):
+        pass
+
+    monkeypatch.setattr(db, "add_admin_user", dummy_add_admin_user)
+
     async def run_lifespan_twice():
         with patch.object(db, "logger"):
             # First run: tables do not exist, so they will be created
@@ -194,18 +222,22 @@ async def test_add_admin_user_skips_if_exists(monkeypatch):
 
     from keylin.models import User
 
-    # Patch session.execute to return a user for the admin query
+    # Patch session.execute to return a result with scalars().first() async
     session = MagicMock()
-    result = MagicMock()
-    result.scalar_one_or_none.return_value = User(
-        id="admin-id",
-        email="admin@example.com",
-        hashed_password="x",
-        is_superuser=True,
-        is_active=True,
-        is_verified=True,
+    mock_result = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.first = AsyncMock(
+        return_value=User(
+            id="admin-id",
+            email="admin@example.com",
+            hashed_password="x",
+            is_superuser=True,
+            is_active=True,
+            is_verified=True,
+        )
     )
-    session.execute = AsyncMock(return_value=result)
+    mock_result.scalars.return_value = mock_scalars
+    session.execute = AsyncMock(return_value=mock_result)
     session.add = MagicMock()
     session.flush = AsyncMock()
     session.commit = AsyncMock()

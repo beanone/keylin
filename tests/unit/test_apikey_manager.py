@@ -35,7 +35,6 @@ async def test_create_api_key(fake_user_id, fake_api_key_instance, monkeypatch):
     mock_db_session.commit = AsyncMock()
     mock_db_session.refresh = AsyncMock()
 
-    # Patch create_api_key_record to return our fake instance
     monkeypatch.setattr(
         "keylin.apikey_manager.create_api_key_record",
         lambda **kwargs: ("plaintext_example_key", fake_api_key_instance),
@@ -60,8 +59,10 @@ async def test_create_api_key(fake_user_id, fake_api_key_instance, monkeypatch):
 @pytest.mark.asyncio
 async def test_list_api_keys(fake_user_id, fake_api_key_instance):
     mock_db_session = AsyncMock(spec=AsyncSession)
-    mock_execute_result = AsyncMock()
-    mock_execute_result.fetchall = AsyncMock(return_value=[fake_api_key_instance])
+    mock_execute_result = Mock()
+    mock_scalar_result = Mock()
+    mock_scalar_result.all.return_value = [fake_api_key_instance]
+    mock_execute_result.scalars.return_value = mock_scalar_result
     mock_db_session.execute = AsyncMock(return_value=mock_execute_result)
 
     result = await list_api_keys(user_id=fake_user_id, session=mock_db_session)
@@ -76,7 +77,7 @@ async def test_list_api_keys(fake_user_id, fake_api_key_instance):
 async def test_delete_api_key_success(fake_user_id, fake_api_key_instance):
     mock_db_session = AsyncMock(spec=AsyncSession)
     mock_execute_result_first = AsyncMock()
-    mock_execute_result_first.first = AsyncMock(return_value=fake_api_key_instance)
+    mock_execute_result_first.first.return_value = fake_api_key_instance
     mock_db_session.execute = AsyncMock(
         side_effect=[mock_execute_result_first, AsyncMock()]
     )
@@ -96,7 +97,7 @@ async def test_delete_api_key_success(fake_user_id, fake_api_key_instance):
 async def test_delete_api_key_not_found(fake_user_id):
     mock_db_session = AsyncMock(spec=AsyncSession)
     mock_execute_result_first = AsyncMock()
-    mock_execute_result_first.first = AsyncMock(return_value=None)
+    mock_execute_result_first.first.return_value = None
     mock_db_session.execute = AsyncMock(return_value=mock_execute_result_first)
 
     result = await delete_api_key(

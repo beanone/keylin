@@ -60,13 +60,12 @@ async def test_dbpy_crud_with_lifespan_and_get_async_session(monkeypatch):
         # Query and assert
         user_db = await session.get(models.User, user_id)
         assert user_db is not None
-        apikeys = (
-            await session.execute(
-                models.APIKey.__table__.select().where(
-                    models.APIKey.user_id == str(user_id)
-                )
+        result = await session.execute(
+            models.APIKey.__table__.select().where(
+                models.APIKey.user_id == str(user_id)
             )
-        ).fetchall()
+        )
+        apikeys = result.fetchall()
         assert len(apikeys) == 1
         assert apikeys[0].name == "Key 1"
 
@@ -123,13 +122,12 @@ async def test_apikey_cascade_delete_with_user(monkeypatch):
         await session.commit()
 
         # Confirm APIKey exists
-        apikeys = (
-            await session.execute(
-                models.APIKey.__table__.select().where(
-                    models.APIKey.user_id == str(user_id)
-                )
+        result = await session.execute(
+            models.APIKey.__table__.select().where(
+                models.APIKey.user_id == str(user_id)
             )
-        ).fetchall()
+        )
+        apikeys = result.fetchall()
         assert len(apikeys) == 1
 
         # Delete the user
@@ -137,11 +135,10 @@ async def test_apikey_cascade_delete_with_user(monkeypatch):
         await session.commit()
 
         # APIKey should be deleted
-        apikeys_after = (
-            await session.execute(
-                models.APIKey.__table__.select().where(
-                    models.APIKey.user_id == str(user_id)
-                )
+        result = await session.execute(
+            models.APIKey.__table__.select().where(
+                models.APIKey.user_id == str(user_id)
             )
-        ).fetchall()
+        )
+        apikeys_after = result.fetchall()
         assert len(apikeys_after) == 0
