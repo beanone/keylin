@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import Column, DateTime, ForeignKey, Index, String
+from sqlalchemy import Column, DateTime, ForeignKey, Index, String, event
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -15,10 +15,12 @@ class User(SQLAlchemyBaseUserTableUUID, Base):  # type: ignore[misc, valid-type]
     full_name = Column(String, nullable=True)
     user_id_str = Column(String(36), unique=True, nullable=False)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Ensure user_id_str is always the string version of id
-        self.user_id_str = str(self.id)
+
+@event.listens_for(User, "before_insert")
+def set_user_id_str(mapper, connection, target):
+    if not target.id:
+        target.id = uuid.uuid4()
+    target.user_id_str = str(target.id)
 
 
 class APIKey(Base):
