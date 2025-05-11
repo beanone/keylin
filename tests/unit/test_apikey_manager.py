@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,11 +76,17 @@ async def test_list_api_keys(fake_user_id, fake_api_key_instance):
 @pytest.mark.asyncio
 async def test_delete_api_key_success(fake_user_id, fake_api_key_instance):
     mock_db_session = AsyncMock(spec=AsyncSession)
-    mock_execute_result_first = AsyncMock()
-    mock_execute_result_first.first.return_value = fake_api_key_instance
+
+    mock_result_for_find = MagicMock()
+    mock_result_for_find.first.return_value = fake_api_key_instance
+
+    mock_result_for_delete = MagicMock()
+
+    # Revert to side_effect providing the resolved MagicMock objects directly
     mock_db_session.execute = AsyncMock(
-        side_effect=[mock_execute_result_first, AsyncMock()]
+        side_effect=[mock_result_for_find, mock_result_for_delete]
     )
+
     mock_db_session.commit = AsyncMock()
 
     result = await delete_api_key(
