@@ -1,10 +1,14 @@
+import logging  # For capturing log messages
+import uuid  # Added import
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 
 import keylin
 from keylin import auth, db, keylin_utils, models, schemas
 from keylin.config import Settings
+from keylin.models import User as KeylinUser  # Alias to avoid conflict
 
 
 def test_version():
@@ -63,17 +67,86 @@ def test_auth_backend_config(monkeypatch):
 
 def test_user_manager_secrets(monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "test-secret")
-    manager = auth.UserManager(user_db=MagicMock())
+    # frontend_url is not a factor for enabling/disabling secrets anymore
+    settings_instance = Settings(JWT_SECRET="test-secret", frontend_url=None)
+    mock_email_sender = AsyncMock()
+    manager = auth.UserManager(
+        user_db=MagicMock(),
+        settings_obj=settings_instance,
+        email_sender=mock_email_sender,  # Email sender IS provided
+    )
+    # Since email_sender is provided, secrets should be set (default to JWT_SECRET)
     assert manager.reset_password_token_secret == "test-secret"
     assert manager.verification_token_secret == "test-secret"
 
 
+def test_user_manager_secrets_with_email_sender_and_frontend_url(monkeypatch):
+    """Test UserManager initializes secrets correctly when an email sender is provided.
+    The presence of frontend_url is irrelevant for this decision but good for the email sender to use.
+    """
+    test_jwt_secret = "test-secret-for-sender"
+    monkeypatch.setenv(
+        "JWT_SECRET", test_jwt_secret
+    )  # Ensure env var matches direct init for consistency if Settings reads it
+    settings_instance = Settings(
+        JWT_SECRET=test_jwt_secret,
+        frontend_url="http://localhost:1234",  # frontend_url provided for completeness
+    )
+    manager = auth.UserManager(
+        user_db=MagicMock(),
+        settings_obj=settings_instance,
+        email_sender=AsyncMock(),  # Email sender IS provided
+    )
+    # Secrets should be set because an email_sender is provided
+    assert manager.reset_password_token_secret == test_jwt_secret
+    assert manager.verification_token_secret == test_jwt_secret
+
+
+def test_user_manager_secrets_no_email_sender(monkeypatch):
+    """Test UserManager disables email features if no email_sender is provided."""
+    test_jwt_secret = "test-secret-no-sender"
+    monkeypatch.setenv("JWT_SECRET", test_jwt_secret)
+    settings_instance = Settings(
+        JWT_SECRET=test_jwt_secret,
+        frontend_url="http://localhost:1234",  # frontend_url is irrelevant here
+    )
+    manager = auth.UserManager(
+        user_db=MagicMock(),
+        settings_obj=settings_instance,
+        email_sender=None,  # NO email sender
+    )
+    assert manager.reset_password_token_secret is None
+    assert manager.verification_token_secret is None
+
+
 @pytest.mark.asyncio
 async def test_get_user_manager_yields_manager():
-    mock_user_db = MagicMock()
-    gen = auth.get_user_manager(mock_user_db)
-    manager = await gen.__anext__()
+    mock_user_db_instance = MagicMock(spec=SQLAlchemyUserDatabase)
+    # frontend_url in settings is not a factor for UserManager's secret initialization logic
+    settings_instance = Settings(
+        JWT_SECRET="a-valid-secret-for-testing", frontend_url=None
+    )
+    mock_email_sender_callable = AsyncMock()
+
+    async_gen = auth.get_user_manager(
+        user_db=mock_user_db_instance,
+        settings_obj=settings_instance,
+        email_sender_impl=mock_email_sender_callable,  # Email sender IS provided
+    )
+    manager = await async_gen.__anext__()
+
+    with pytest.raises(StopAsyncIteration):
+        await async_gen.__anext__()
+
     assert isinstance(manager, auth.UserManager)
+    assert manager.user_db == mock_user_db_instance
+    assert manager.settings == settings_instance
+    assert manager._send_email == mock_email_sender_callable
+    # Since an email_sender is provided via mock_email_sender_callable, secrets should be set
+    assert (
+        manager.reset_password_token_secret == settings_instance.RESET_PASSWORD_SECRET
+    )
+    assert manager.verification_token_secret == settings_instance.VERIFICATION_SECRET
 
 
 def test_fastapi_users_instance():
@@ -289,3 +362,236 @@ def test_create_api_key_record():
     assert record.service_id == service_id
     assert record.name == "Test Key"
     assert keylin_utils.verify_api_key_hash(api_key, record.key_hash)
+
+
+# Fixture for a UserManager instance
+@pytest.fixture
+def user_manager_instance(monkeypatch):
+    # monkeypatch.setenv("JWT_SECRET", "test-fixture-secret") # JWT_SECRET now passed directly
+    settings_dict = {
+        "JWT_SECRET": "test-fixture-secret",
+        "RESET_PASSWORD_SECRET": "reset_secret_fixture",
+        "VERIFICATION_SECRET": "verify_secret_fixture",
+        "frontend_url": "http://localhost:3000/test",
+        "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
+        "JWT_ALGORITHM": "HS256",
+        "JWT_EXPIRE_SECONDS": 3600,
+        "ADMIN_EMAIL": "admin@test.com",
+        "ADMIN_PASSWORD": "password",
+        "ADMIN_FULL_NAME": "Admin User",
+    }
+    settings_instance = Settings(**settings_dict)
+    mock_user_db = MagicMock(spec=SQLAlchemyUserDatabase)
+    mock_email_sender = AsyncMock()
+    manager = auth.UserManager(
+        user_db=mock_user_db,
+        settings_obj=settings_instance,
+        email_sender=mock_email_sender,
+    )
+    return manager, mock_email_sender, settings_instance
+
+
+# Fixture for a dummy User object
+@pytest.fixture
+def dummy_user():
+    return KeylinUser(
+        id=uuid.uuid4(),
+        email="test@example.com",
+        hashed_password="hashed",
+        is_active=True,
+        is_verified=False,
+        is_superuser=False,
+    )
+
+
+@pytest.mark.asyncio
+async def test_on_after_login_logs_info(user_manager_instance, dummy_user, caplog):
+    """Test line 66: on_after_login logs correctly."""
+    manager, _, _ = user_manager_instance
+    caplog.set_level(logging.INFO)
+
+    await manager.on_after_login(dummy_user)
+
+    assert f"User {dummy_user.id} logged in." in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_on_after_register_logs_info(user_manager_instance, dummy_user, caplog):
+    """Test line 74: on_after_register logs correctly."""
+    manager, _, _ = user_manager_instance
+    caplog.set_level(logging.INFO)
+
+    await manager.on_after_register(dummy_user)
+
+    assert f"User registered: id={dummy_user.id}" in caplog.text
+
+
+# Tests for on_after_request_verify / on_after_forgot_password
+
+
+# This test might need to be re-evaluated or removed as UserManager hooks no longer check frontend_url
+# to log a warning. The warning for missing frontend_url would come from the init if it were still checking it.
+# The hook itself will proceed if an email_sender is present.
+@pytest.mark.asyncio
+async def test_on_after_request_verify_hook_if_sender_present(
+    user_manager_instance, dummy_user, caplog
+):
+    """Test on_after_request_verify hook attempts to send email if sender is present."""
+    manager, mock_email_sender, settings_instance = user_manager_instance
+    # settings_instance from fixture HAS frontend_url, and manager HAS an email_sender
+    caplog.set_level(logging.INFO)
+
+    await manager.on_after_request_verify(dummy_user, "test_token")
+
+    # We expect it to try sending the email
+    assert (
+        f"Delegating verification email sending for {dummy_user.email}" in caplog.text
+    )
+    mock_email_sender.assert_awaited_once_with(
+        to_email=dummy_user.email, token="test_token"
+    )
+
+
+@pytest.mark.asyncio
+async def test_on_after_request_verify_hook_if_no_sender(
+    dummy_user, caplog, monkeypatch
+):
+    """Test on_after_request_verify hook does NOT attempt to send email if no sender is present in manager."""
+    monkeypatch.setenv("JWT_SECRET", "test-no-sender-hook")
+    settings_obj = Settings(JWT_SECRET="test-no-sender-hook")
+    mock_user_db = MagicMock(spec=SQLAlchemyUserDatabase)
+
+    # 1. Test the __init__ logging (optional here, but good to be aware of)
+    # with caplog.at_level(logging.WARNING, logger="keylin.auth"):
+    #     manager_for_init_check = auth.UserManager(
+    #         user_db=mock_user_db,
+    #         settings_obj=settings_obj,
+    #         email_sender=None
+    #     )
+    # assert any(
+    #     "No email sender configured" in record.message for record in caplog.records
+    # )
+    # caplog.clear()
+
+    # 2. Test the hook behavior directly
+    # Create a manager instance that definitely has _send_email = None
+    manager = auth.UserManager(
+        user_db=mock_user_db,
+        settings_obj=settings_obj,
+        email_sender=None,  # Crucially, email_sender is None
+    )
+    assert manager._send_email is None  # Verify precondition for the test
+
+    # We want to ensure that the code path that calls self._send_email is not taken.
+    # So, no "Delegating..." log message should appear from this specific call.
+    # Also, no error should occur if self._send_email is None and an attempt was made to call it.
+
+    # Spy on the logger for this specific hook call
+    with caplog.at_level(logging.INFO, logger="keylin.auth"):
+        await manager.on_after_request_verify(dummy_user, "test_token")
+
+    # Assert that the specific INFO log from within the 'if self._send_email:' block was NOT emitted
+    delegating_log_found = any(
+        f"Delegating verification email sending for {dummy_user.email}"
+        in record.message
+        for record in caplog.records
+    )
+    assert not delegating_log_found
+
+    # Additionally, if self._send_email was a mock, we would do mock.assert_not_called()
+    # Since it's None, the fact that no AttributeError occurred when the method was called
+    # and the delegating log is missing is sufficient proof the branch was skipped.
+
+
+# Test for default_keylin_email_sender (line 136)
+@pytest.mark.asyncio
+async def test_default_keylin_email_sender_logs_warning(caplog):
+    """Test default_keylin_email_sender logs a warning."""
+    caplog.set_level(logging.WARNING)
+    to_email_val = "to@example.com"
+    token_val = "test_token_123"
+    await keylin_utils.default_keylin_email_sender(
+        to_email=to_email_val, token=token_val
+    )
+    expected_log_message = (
+        f"Default Keylin email sender called for {to_email_val} with token {token_val}. "
+        f"Email not sent. Please override this dependency."
+    )
+    # Check records for more robust log assertion
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.levelname == "WARNING"
+    assert record.message == expected_log_message
+
+
+# Test for get_settings (line 140)
+def test_get_settings_returns_module_settings():
+    """Test line 140: get_settings returns the global settings instance."""
+    # auth.settings is the global instance created in auth.py
+    # We need to ensure that auth.get_settings() returns this specific instance.
+    # This test might be a bit trivial if auth.settings is not changed by other tests.
+    # A more robust way could be to mock auth.settings for the duration of this test
+    # if there were concerns about its state.
+    global_settings_in_auth_module = auth.settings
+    returned_settings = auth.get_settings()
+    assert returned_settings is global_settings_in_auth_module
+    # Also check if it's a Settings instance
+    assert isinstance(returned_settings, Settings)
+
+
+@pytest.mark.asyncio
+async def test_on_after_request_verify_email_send_exception(
+    user_manager_instance, dummy_user, caplog
+):
+    """Test exception during email sending in on_after_request_verify (covers logger.error)."""
+    manager, mock_email_sender, _ = user_manager_instance
+    caplog.set_level(logging.ERROR)
+
+    token = "test_verify_exception_token"
+    error_message = "SMTP server for verification down"
+    mock_email_sender.side_effect = Exception(error_message)
+
+    await manager.on_after_request_verify(dummy_user, token)
+
+    assert (
+        len(caplog.records) >= 1
+    )  # Allow for other ERROR logs, but check specific one
+    found_log = False
+    for record in caplog.records:
+        if (
+            record.levelname == "ERROR"
+            and record.name == "keylin.auth"
+            and f"Failed to send verification email to {dummy_user.email}: {error_message}"
+            in record.message
+        ):
+            found_log = True
+            break
+    assert found_log, "Expected error log for verification email failure not found"
+
+
+@pytest.mark.asyncio
+async def test_on_after_forgot_password_email_send_exception(
+    user_manager_instance, dummy_user, caplog
+):
+    """Test exception during email sending in on_after_forgot_password (covers logger.error)."""
+    manager, mock_email_sender, _ = user_manager_instance
+    caplog.set_level(logging.ERROR)
+
+    token = "test_forgot_pass_exception_token"
+    error_message = "Network Error during password reset email"
+    mock_email_sender.side_effect = Exception(error_message)
+
+    await manager.on_after_forgot_password(dummy_user, token)
+
+    assert len(caplog.records) >= 1  # Allow for other ERROR logs
+    found_log = False
+    for record in caplog.records:
+        if (
+            record.levelname == "ERROR"
+            and record.name == "keylin.auth"
+            and f"Failed to send password reset email to {dummy_user.email}: {error_message}"
+            in record.message
+        ):
+            found_log = True
+            break
+    assert found_log, "Expected error log for password reset email failure not found"

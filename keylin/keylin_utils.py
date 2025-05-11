@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import secrets
 import string
 import uuid
@@ -7,6 +8,9 @@ from datetime import UTC, datetime, timedelta
 from keylin.models import APIKey
 
 from .config import Settings
+
+# Moved from keylin.auth
+logger = logging.getLogger(__name__)
 
 
 def create_jwt_for_user(
@@ -146,3 +150,12 @@ def create_api_key_record(
         created_at=final_created_at,
     )
     return api_key, record
+
+
+async def default_keylin_email_sender(*, to_email: str, token: str) -> None:
+    """Placeholder email sender. Logs a warning and performs no action."""
+    logger.warning(
+        f"Default Keylin email sender called for {to_email} with token {token}. "
+        f"Email not sent. Please override this dependency."
+    )
+    pass
