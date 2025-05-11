@@ -86,7 +86,7 @@ async def add_admin_user(session: AsyncSession) -> None:
     Returns:
         None
     """
-    result = await session.execute(select(User).where(User.is_superuser is True))
+    result = await session.execute(select(User).where(User.is_superuser.is_(True)))
     admin = result.scalars().first()
     if admin:
         return
