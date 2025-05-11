@@ -110,22 +110,28 @@ The `keylin` library's `UserManager` supports sending emails for password resets
 ```python
 # keylin.auth.EmailSenderCallable
 class EmailSenderCallable(Protocol):
-    async def __call__(self, *, to_email: str, token: str) -> None:
+    async def __call__(self, *, to_email: str, token: str, path: str) -> None:
+        # path will be a string like "reset-password" or "verify-email"
         ...
 ```
-Your custom email sender function must match this signature. It will receive the recipient's email and the generated token (for password reset or email verification). Your implementation is responsible for:
-- Constructing the full email content (subject and body).
-- Using the provided `token` and your application's `frontend_url` (from your own settings) to create the clickable link within the email body.
+Your custom email sender function must match this signature. It will receive:
+- `to_email`: The recipient's email address.
+- `token`: The generated token for the action.
+- `path`: A string indicating the type of action (e.g., "reset-password", "verify-email"). This helps your sender construct the correct link and email content.
+
+Your implementation is responsible for:
+- Using the `path` to determine the email's purpose (password reset or verification) and tailor the subject and body accordingly.
+- Using the provided `token`, the `path`, and your application's `frontend_url` (from your own settings) to create the full, clickable link within the email body (e.g., `f"{frontend_url}/{path}?token={token}"`).
 - Actually sending the email using your preferred email service (e.g., SendGrid, SES, SMTP).
 
 **2. Default Placeholder:**
 
-By default, `keylin` uses a placeholder email sender that logs a warning and does not send any emails. This is located at `keylin.keylin_utils.default_keylin_email_sender`.
+By default, `keylin` uses a placeholder email sender that logs a warning and does not send any emails. This is located at `keylin.keylin_utils.default_keylin_email_sender`. Its signature now also includes the `path` argument.
 
 **3. Enabling Email Features:**
 
 For password reset and email verification features to be enabled in `keylin` (and for `fastapi-users` to expose the related routes):
-- You **must** provide a working email sender implementation.
+- You **must** provide a working email sender implementation that conforms to the `EmailSenderCallable` protocol.
 - Your `keylin.config.Settings` object (or a subclass used by your application) **must** have the `RESET_PASSWORD_SECRET` and `VERIFICATION_SECRET` attributes set (they default to `JWT_SECRET` if not explicitly provided).
 
 **4. Injecting Your Custom Email Sender:**
@@ -141,26 +147,33 @@ from keylin import keylin_utils                    # To access the default sende
 
 # 1. Define your custom email sender function
 # (This could be in a separate services/email.py module in your project)
-async def my_custom_email_sender(*, to_email: str, token: str) -> None:
+async def my_custom_email_sender(*, to_email: str, token: str, path: str) -> None:
     # Example: (Replace with your actual email sending logic)
     # from your_project.config import my_app_settings # Your app's specific settings
     # frontend_url = my_app_settings.FRONTEND_APP_URL
-    # For password reset, the link might be:
-    # reset_link = f"{frontend_url}/auth/reset-password?token={token}"
-    # For email verification, the link might be:
-    # verify_link = f"{frontend_url}/auth/verify-email?token={token}"
+    # full_link = f"{frontend_url}/{path}?token={token}"
 
-    # You'll need to determine if it's a password reset or verification email.
-    # One way is to have separate override functions or add a context/type to EmailSenderCallable.
-    # For simplicity here, we'll just log.
-    print(f"Simulating email to {to_email} with token {token}. Link would use your frontend_url.")
-    #
-    # IMPORTANT: This example is simplified. Your actual sender will need to know
-    # whether to send a password reset or an email verification email.
-    # You might need to adjust the EmailSenderCallable protocol in keylin or
-    # use two different dependency overrides if your email content differs significantly.
-    # Alternatively, the token itself could be inspected or you might use different
-    # endpoint handlers in your app that call different UserManager methods.
+    subject = ""
+    body_intro = ""
+    frontend_url = "https://your-frontend.com" # Replace with your actual frontend URL from settings
+    action_link = f"{frontend_url}/{path}?token={token}"
+
+    if path == "reset-password":
+        subject = "Reset Your Password"
+        body_intro = "Please click the link below to reset your password:"
+    elif path == "verify-email":
+        subject = "Verify Your Email Address"
+        body_intro = "Please click the link below to verify your email address:"
+    else:
+        subject = "Important Account Action"
+        body_intro = "Please click the link below:"
+
+    email_body = f"{body_intro}\n{action_link}"
+
+    print(f"Simulating email to: {to_email}")
+    print(f"Subject: {subject}")
+    print(f"Body: {email_body}")
+    # Your actual email sending code using a service like SendGrid, SES, or SMTP would go here
 
 app = FastAPI()
 
@@ -179,17 +192,13 @@ app.include_router(fastapi_users.get_reset_password_router(), prefix="/auth", ta
 app.include_router(fastapi_users.get_verify_router(UserRead), prefix="/auth", tags=["auth"])
 
 # Your application's settings (e.g., from keylin.config.Settings or a subclass)
-# should define FRONTEND_APP_URL if your custom email sender needs it.
+# should define its own FRONTEND_APP_URL if your custom email sender needs it for link construction.
 # Keylin's UserManager enables password/verification features if an email_sender
 # is provided and the necessary token secrets are available.
 ```
 
 **Important Note on Email Content:**
-The `EmailSenderCallable` interface in `keylin` currently passes only `to_email` and `token`. Your custom sender implementation will need to:
-- Determine if the token is for password reset or email verification to customize the subject and body. This might involve:
-    - Having separate sender functions and overriding them for `fastapi_users.get_reset_password_router()` and `fastapi_users.get_verify_router()` if `fastapi-users` allows such granular overrides for its internal `UserManager` calls (this is advanced).
-    - A simpler approach for the library user: your application might need to store some context when the token is generated, or the token itself could be structured to indicate its purpose (though this is less common for `fastapi-users` tokens).
-    - Alternatively, the `keylin.auth.EmailSenderCallable` protocol could be extended in future versions of `keylin` to include an `email_type` (e.g., "password_reset", "email_verification") if more direct support from the library is desired. For now, the injected sender takes on this responsibility.
+(This paragraph can be removed or simplified as the `path` argument now helps differentiate)
 
 This setup ensures that `keylin` remains decoupled from specific email sending implementations and URL structures, while providing the necessary hooks for downstream applications to integrate their own email services.
 

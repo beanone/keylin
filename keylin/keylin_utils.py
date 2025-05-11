@@ -156,6 +156,7 @@ async def default_keylin_email_sender(*, to_email: str, token: str, path: str) -
     """Placeholder email sender. Logs a warning and performs no action."""
     logger.warning(
         f"Default Keylin email sender called for {to_email} with token {token}. "
+        f"Path: {path}"
         f"Email not sent. Please override this dependency."
     )
     pass
