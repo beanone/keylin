@@ -218,32 +218,46 @@ def test_lifespan_check_tables_exist_integration(monkeypatch):
 @pytest.mark.asyncio
 async def test_add_admin_user_skips_if_exists(monkeypatch):
     """Test add_admin_user returns early if an admin user already exists."""
-    from unittest.mock import AsyncMock, MagicMock
+    import uuid
+
+    from sqlalchemy.ext.asyncio import AsyncSession  # For spec
 
     from keylin.models import User
 
-    # Patch session.execute to return a result with scalars().first() async
-    session = MagicMock()
-    mock_result = MagicMock()
-    mock_scalars = MagicMock()
-    mock_scalars.first = AsyncMock(
-        return_value=User(
-            id="admin-id",
-            email="admin@example.com",
-            hashed_password="x",
-            is_superuser=True,
-            is_active=True,
-            is_verified=True,
-        )
+    # 1. session is an AsyncMock
+    session = AsyncMock(spec=AsyncSession)
+
+    # 2. session.execute is an AsyncMock method.
+    #    Its return_value is what `result` will be in `add_admin_user`
+    mock_execute_yielded_result = MagicMock()
+    session.execute = AsyncMock(return_value=mock_execute_yielded_result)
+
+    # 3. mock_execute_yielded_result must have a .scalars() method (which is callable)
+    mock_scalars_method_result = MagicMock()
+    mock_execute_yielded_result.scalars.return_value = mock_scalars_method_result
+
+    # 4. mock_scalars_method_result must have a .first() method (which is callable)
+    existing_admin = User(
+        id=uuid.uuid4(),
+        email="admin@example.com",
+        hashed_password="x",
+        is_superuser=True,
+        is_active=True,
+        is_verified=True,
     )
-    mock_result.scalars.return_value = mock_scalars
-    session.execute = AsyncMock(return_value=mock_result)
+    mock_scalars_method_result.first.return_value = existing_admin
+
     session.add = MagicMock()
     session.flush = AsyncMock()
     session.commit = AsyncMock()
     session.refresh = AsyncMock()
+
     await db.add_admin_user(session)
-    # Should not add, flush, commit, or refresh
+
+    session.execute.assert_awaited_once()
+    mock_execute_yielded_result.scalars.assert_called_once()
+    mock_scalars_method_result.first.assert_called_once()
+
     session.add.assert_not_called()
     session.flush.assert_not_called()
     session.commit.assert_not_called()
