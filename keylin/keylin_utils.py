@@ -110,15 +110,39 @@ def create_api_key_record(
     """
     api_key = generate_api_key(length=key_length)
     key_hash = hash_api_key(api_key)
+
+    # Ensure created_at is naive UTC
+    final_created_at: datetime | None
+    if created_at:
+        final_created_at = (
+            created_at.replace(tzinfo=None) if created_at.tzinfo else created_at
+        )
+    else:
+        final_created_at = datetime.now(UTC).replace(tzinfo=None)
+
+    # Ensure expires_at is naive UTC if provided
+    final_expires_at: datetime | None = None
+    if expires_at:
+        final_expires_at = (
+            expires_at.replace(tzinfo=None) if expires_at.tzinfo else expires_at
+        )
+
+    # Ensure last_used_at is naive UTC if provided
+    final_last_used_at: datetime | None = None
+    if last_used_at:
+        final_last_used_at = (
+            last_used_at.replace(tzinfo=None) if last_used_at.tzinfo else last_used_at
+        )
+
     record = APIKey(
         user_id=user_id,
         key_hash=key_hash,
         service_id=service_id,
         name=name,
         status=status,
-        expires_at=expires_at,
-        last_used_at=last_used_at,
+        expires_at=final_expires_at,
+        last_used_at=final_last_used_at,
         id=id,
-        created_at=created_at or datetime.now(UTC),
+        created_at=final_created_at,
     )
     return api_key, record
