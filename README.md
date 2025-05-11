@@ -14,6 +14,19 @@
 - Reusable across multiple services
 - Internal async API key management (CRUD) module
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [API Key Management](#api-key-management)
+- [Architecture & Integration Guide](#architecture--integration-guide)
+- [User Model & Database Schema](#user-model--database-schema)
+- [Configuration Usage](#configuration-usage)
+- [Testing](#testing)
+- [Setting Up the User Database](#setting-up-the-user-database)
+- [Admin User Account Setup](#admin-user-account-setup)
+- [License](#license)
+
 ## Installation
 
 ```bash
@@ -205,6 +218,25 @@ Base.metadata.create_all(engine)
 ```
 
 > **Note:** For production, always use migrations to avoid data loss and ensure schema consistency.
+
+### Admin User Account Setup
+
+After the user tables are created (either via Alembic or programmatically), `keylin` will automatically create an admin (superuser) account if one does not already exist. This ensures you always have an initial admin user for your application.
+
+**Default admin credentials:**
+- Email: `admin@example.com`
+- Password: `changeme`
+- Full name: `Admin`
+
+**Override defaults in production:**
+Set the following environment variables before starting your app to change the admin account credentials:
+- `ADMIN_EMAIL` (default: `admin@example.com`)
+- `ADMIN_PASSWORD` (default: `changeme`)
+- `ADMIN_FULL_NAME` (default: `Admin`)
+
+> **Security Note:** Always override the default admin password and email in production environments!
+
+The admin user is created only if no superuser exists in the database. If you delete the admin user, it will be recreated on the next app startup unless another superuser exists.
 
 ## License
 
