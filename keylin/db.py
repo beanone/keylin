@@ -6,7 +6,12 @@ from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
 from fastapi_users.password import PasswordHelper
 from sqlalchemy import event, inspect, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from .config import Settings
 from .models import Base, User
@@ -53,6 +58,9 @@ async def lifespan():
         else:
             logger.info("All tables already exist. Skipping creation.")
 
+    # Ensure Postgres trigger exists
+    await create_user_id_str_trigger(DBState.engine)
+
     async with DBState.async_session_maker() as session:
         await add_admin_user(session)
 
@@ -70,6 +78,45 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
     yield SQLAlchemyUserDatabase(session, User)
+
+
+TRIGGER_SQL = """
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'uuid') THEN
+        CREATE OR REPLACE FUNCTION set_user_id_str()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.user_id_str := NEW.id::text;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        IF EXISTS (
+            SELECT 1 FROM pg_trigger WHERE tgname = 'user_id_str_trigger'
+        ) THEN
+            DROP TRIGGER user_id_str_trigger ON "user";
+        END IF;
+
+        CREATE TRIGGER user_id_str_trigger
+        BEFORE INSERT ON "user"
+        FOR EACH ROW
+        EXECUTE FUNCTION set_user_id_str();
+    END IF;
+END;
+$$;
+"""
+
+
+async def create_user_id_str_trigger(engine: AsyncEngine) -> None:
+    """
+    Create the user_id_str trigger in Postgres if not present.
+    No-op for SQLite.
+    """
+    if "postgresql" in str(engine.url):
+        async with engine.begin() as conn:
+            await conn.execute(TRIGGER_SQL)
+        logger.info("Postgres trigger for user_id_str ensured.")
 
 
 async def add_admin_user(session: AsyncSession) -> None:
@@ -98,5 +145,6 @@ async def add_admin_user(session: AsyncSession) -> None:
         full_name=settings.ADMIN_FULL_NAME,
     )
     session.add(admin)
+    await session.flush()
     await session.commit()
     await session.refresh(admin)

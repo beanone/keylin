@@ -11,6 +11,13 @@ class Base(DeclarativeBase):
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):  # type: ignore[misc, valid-type]
+    """
+    User model with user_id_str logic:
+    - Always set by a before_insert event in Python for all DBs.
+    - In Postgres, a DB trigger also sets it for extra safety.
+    Do not update user_id_str elsewhere.
+    """
+
     __tablename__ = "user"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     full_name = Column(String, nullable=True)

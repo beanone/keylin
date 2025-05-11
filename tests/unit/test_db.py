@@ -185,3 +185,150 @@ def test_lifespan_check_tables_exist_integration(monkeypatch):
                 pass
 
     asyncio.run(run_lifespan_twice())
+
+
+@pytest.mark.asyncio
+async def test_add_admin_user_skips_if_exists(monkeypatch):
+    """Test add_admin_user returns early if an admin user already exists."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from keylin.models import User
+
+    # Patch session.execute to return a user for the admin query
+    session = MagicMock()
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = User(
+        id="admin-id",
+        email="admin@example.com",
+        hashed_password="x",
+        is_superuser=True,
+        is_active=True,
+        is_verified=True,
+    )
+    session.execute = AsyncMock(return_value=result)
+    session.add = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
+    await db.add_admin_user(session)
+    # Should not add, flush, commit, or refresh
+    session.add.assert_not_called()
+    session.flush.assert_not_called()
+    session.commit.assert_not_called()
+    session.refresh.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_calls_add_admin_user(monkeypatch):
+    """Test that lifespan calls add_admin_user during startup."""
+    mock_engine = MagicMock()
+    mock_conn_ctx = AsyncMock()
+    mock_conn = MagicMock()
+    mock_run_sync = AsyncMock()
+    mock_conn_ctx.__aenter__.return_value = mock_conn
+    mock_conn.run_sync = mock_run_sync
+    mock_engine.begin.return_value = mock_conn_ctx
+
+    monkeypatch.setattr(db, "create_async_engine", lambda *a, **kw: mock_engine)
+    monkeypatch.setattr(db, "async_sessionmaker", lambda *a, **kw: MagicMock())
+    monkeypatch.setattr(
+        db, "Settings", lambda: MagicMock(DATABASE_URL="sqlite+aiosqlite:///test.db")
+    )
+    mock_run_sync.side_effect = [True]
+
+    called = {}
+
+    async def fake_add_admin_user(session):
+        called["called"] = True
+
+    monkeypatch.setattr(db, "add_admin_user", fake_add_admin_user)
+
+    async with db.lifespan():
+        pass
+    assert called.get("called") is True
+
+
+@pytest.mark.asyncio
+def test_create_user_id_str_trigger_executes_for_postgres(monkeypatch):
+    """Test create_user_id_str_trigger executes trigger SQL for Postgres engine."""
+    from keylin.db import TRIGGER_SQL, create_user_id_str_trigger
+
+    class DummyConn:
+        def __init__(self):
+            self.executed = False
+            self.sql = None
+
+        async def execute(self, sql):
+            self.executed = True
+            self.sql = sql
+
+    class DummyEngine:
+        def __init__(self):
+            self.url = "postgresql+asyncpg://user:pass@localhost/db"
+            self.conn = DummyConn()
+            self.begin_called = False
+
+        def begin(self):
+            outer_self = self
+
+            class Ctx:
+                async def __aenter__(self):
+                    outer_self.begin_called = True
+                    return outer_self.conn
+
+                async def __aexit__(self, exc_type, exc, tb):
+                    pass
+
+            return Ctx()
+
+    engine = DummyEngine()
+    called = {}
+
+    def fake_logger_info(msg):
+        called["logger"] = msg
+
+    monkeypatch.setattr(db.logger, "info", fake_logger_info)
+    import asyncio
+
+    asyncio.run(create_user_id_str_trigger(engine))
+    assert engine.conn.executed is True
+    assert engine.conn.sql == TRIGGER_SQL
+    assert "trigger" in called["logger"].lower()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_calls_create_user_id_str_trigger(monkeypatch):
+    """Test that lifespan calls create_user_id_str_trigger during startup."""
+    mock_engine = MagicMock()
+    mock_conn_ctx = AsyncMock()
+    mock_conn = MagicMock()
+    mock_run_sync = AsyncMock()
+    mock_conn_ctx.__aenter__.return_value = mock_conn
+    mock_conn.run_sync = mock_run_sync
+    mock_engine.begin.return_value = mock_conn_ctx
+
+    monkeypatch.setattr(db, "create_async_engine", lambda *a, **kw: mock_engine)
+    monkeypatch.setattr(db, "async_sessionmaker", lambda *a, **kw: MagicMock())
+    monkeypatch.setattr(
+        db, "Settings", lambda: MagicMock(DATABASE_URL="sqlite+aiosqlite:///test.db")
+    )
+    mock_run_sync.side_effect = [True]
+
+    called = {}
+
+    async def fake_create_user_id_str_trigger(engine):
+        called["called"] = True
+
+    monkeypatch.setattr(
+        db, "create_user_id_str_trigger", fake_create_user_id_str_trigger
+    )
+
+    # Patch add_admin_user to avoid side effects
+    async def fake_add_admin_user(session):
+        pass
+
+    monkeypatch.setattr(db, "add_admin_user", fake_add_admin_user)
+
+    async with db.lifespan():
+        pass
+    assert called.get("called") is True
