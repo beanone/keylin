@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from keylin.keylin_utils import create_api_key_record
@@ -59,9 +60,7 @@ async def list_api_keys(
     Returns:
         List[dict]: List of API key info dicts.
     """
-    result = await session.execute(
-        APIKey.__table__.select().where(APIKey.user_id == user_id)
-    )
+    result = await session.execute(select(APIKey).where(APIKey.user_id == user_id))
     keys = await result.fetchall()
     return [
         {
@@ -93,7 +92,7 @@ async def delete_api_key(
         bool: True if deleted, False if not found.
     """
     result = await session.execute(
-        APIKey.__table__.select().where(APIKey.id == key_id, APIKey.user_id == user_id)
+        select(APIKey).where(APIKey.id == key_id, APIKey.user_id == user_id)
     )
     row = await result.first()
     if not row:

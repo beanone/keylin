@@ -12,6 +12,7 @@
 - User model and schema library for authentication services
 - Designed for integration with FastAPI and fastapi-users
 - Reusable across multiple services
+- Internal async API key management (CRUD) module
 
 ## Installation
 
@@ -39,6 +40,16 @@ async def get_user(user_id: str, session: AsyncSession = Depends(get_async_sessi
         return user
     return {"error": "User not found"}
 ```
+
+## API Key Management
+
+Keylin includes an internal API key management module (`keylin.apikey_manager`) that provides async functions for creating, listing, and deleting API keys. These functions encapsulate all business logic and database operations for API key management and are intended for use within the keylin codebase.
+
+- `create_api_key(user_id, service_id, session, name=None, expires_at=None)`
+- `list_api_keys(user_id, session)`
+- `delete_api_key(key_id, user_id, session)`
+
+All functions are async and require an `AsyncSession` for database access.
 
 ## Architecture & Integration Guide
 
@@ -161,7 +172,7 @@ settings = MyServiceSettings()
 - The test suite sets `JWT_SECRET` automatically for all tests (see `tests/conftest.py`).
 - All code and tests should instantiate `Settings` directly as needed.
 - There is no global singleton; each test or module should create its own `Settings` instance if configuration is needed.
-- See `tests/unit/test_keylin.py` for example tests and mocking patterns.
+- See `tests/unit/test_keylin.py` and `tests/unit/test_apikey_manager.py` for example tests and mocking patterns.
 
 ### Setting Up the User Database
 
