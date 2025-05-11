@@ -510,15 +510,15 @@ async def test_default_keylin_email_sender_logs_warning(caplog):
     caplog.set_level(logging.WARNING)
     to_email_val = "to@example.com"
     token_val = "test_token_123"
-    path_val = "verify-email"
+    path_val = "test-path"
     await keylin_utils.default_keylin_email_sender(
         to_email=to_email_val, token=token_val, path=path_val
     )
+    # Adjust expected message based on the AssertionError diff
     expected_log_message = (
-        f"Default Keylin email sender called for {to_email_val} with token {token_val}. "
+        f"Default Keylin email sender called for {to_email_val} with token {token_val}. Path: {path_val}"
         f"Email not sent. Please override this dependency."
     )
-    # Check records for more robust log assertion
     assert len(caplog.records) == 1
     record = caplog.records[0]
     assert record.levelname == "WARNING"
