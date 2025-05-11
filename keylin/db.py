@@ -4,7 +4,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
-from sqlalchemy import event, inspect
+from fastapi_users.password import PasswordHelper
+from sqlalchemy import event, inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from .config import Settings
@@ -52,6 +53,9 @@ async def lifespan():
         else:
             logger.info("All tables already exist. Skipping creation.")
 
+    async with DBState.async_session_maker() as session:
+        await add_admin_user(session)
+
     yield
 
 
@@ -66,3 +70,33 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
     yield SQLAlchemyUserDatabase(session, User)
+
+
+async def add_admin_user(session: AsyncSession) -> None:
+    """
+    Add an admin user to the database if it doesn't exist.
+
+    Args:
+        session (AsyncSession): The database session.
+
+    Returns:
+        None
+    """
+    result = await session.execute(select(User).where(User.is_superuser is True))
+    admin = result.scalar_one_or_none()
+    if admin:
+        return
+
+    settings = Settings()
+    password_helper = PasswordHelper()
+    admin = User(
+        email=settings.ADMIN_EMAIL,
+        hashed_password=password_helper.hash(settings.ADMIN_PASSWORD),
+        is_superuser=True,
+        is_active=True,
+        is_verified=True,
+        full_name=settings.ADMIN_FULL_NAME,
+    )
+    session.add(admin)
+    await session.commit()
+    await session.refresh(admin)

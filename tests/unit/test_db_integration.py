@@ -12,7 +12,16 @@ async def test_dbpy_crud_with_lifespan_and_get_async_session(monkeypatch):
     monkeypatch.setattr(
         db,
         "Settings",
-        lambda: type("S", (), {"DATABASE_URL": "sqlite+aiosqlite:///:memory:"})(),
+        lambda: type(
+            "S",
+            (),
+            {
+                "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
+                "ADMIN_EMAIL": "admin@example.com",
+                "ADMIN_PASSWORD": "changeme",
+                "ADMIN_FULL_NAME": "Admin",
+            },
+        )(),
     )
 
     # Reset DBState
@@ -69,7 +78,16 @@ async def test_apikey_cascade_delete_with_user(monkeypatch):
     monkeypatch.setattr(
         db,
         "Settings",
-        lambda: type("S", (), {"DATABASE_URL": "sqlite+aiosqlite:///:memory:"})(),
+        lambda: type(
+            "S",
+            (),
+            {
+                "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
+                "ADMIN_EMAIL": "admin@example.com",
+                "ADMIN_PASSWORD": "changeme",
+                "ADMIN_FULL_NAME": "Admin",
+            },
+        )(),
     )
 
     # Reset DBState
