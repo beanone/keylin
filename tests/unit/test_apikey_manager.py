@@ -96,7 +96,7 @@ async def test_delete_api_key_success(fake_user_id, fake_api_key_instance):
 @pytest.mark.asyncio
 async def test_delete_api_key_not_found(fake_user_id):
     mock_db_session = AsyncMock(spec=AsyncSession)
-    mock_execute_result_first = AsyncMock()
+    mock_execute_result_first = Mock()
     mock_execute_result_first.first.return_value = None
     mock_db_session.execute = AsyncMock(return_value=mock_execute_result_first)
 

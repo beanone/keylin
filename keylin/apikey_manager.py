@@ -94,7 +94,7 @@ async def delete_api_key(
     result = await session.execute(
         select(APIKey).where(APIKey.id == key_id, APIKey.user_id == user_id)
     )
-    row = await result.first()
+    row = result.first()
     if not row:
         return False
     await session.execute(
