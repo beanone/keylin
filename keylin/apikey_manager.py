@@ -61,7 +61,7 @@ async def list_api_keys(
         List[dict]: List of API key info dicts.
     """
     result = await session.execute(select(APIKey).where(APIKey.user_id == user_id))
-    keys = await result.fetchall()
+    keys = await result.all()
     return [
         {
             "id": row.id,
