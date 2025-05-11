@@ -24,7 +24,7 @@ settings = Settings()
 
 # Define a Protocol for the email sender callable
 class EmailSenderCallable(Protocol):  # pragma: no cover
-    async def __call__(self, *, to_email: str, token: str) -> None:
+    async def __call__(self, *, to_email: str, token: str, path: str) -> None:
         ...
 
 
@@ -110,6 +110,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 await self._send_email(
                     to_email=user.email,
                     token=token,
+                    path="reset-password",
                 )
             except Exception as e:
                 logger.error(
@@ -130,6 +131,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 await self._send_email(
                     to_email=user.email,
                     token=token,
+                    path="verify-email",
                 )
             except Exception as e:
                 logger.error(f"Failed to send verification email to {user.email}: {e}")

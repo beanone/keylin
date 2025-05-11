@@ -152,7 +152,7 @@ def create_api_key_record(
     return api_key, record
 
 
-async def default_keylin_email_sender(*, to_email: str, token: str) -> None:
+async def default_keylin_email_sender(*, to_email: str, token: str, path: str) -> None:
     """Placeholder email sender. Logs a warning and performs no action."""
     logger.warning(
         f"Default Keylin email sender called for {to_email} with token {token}. "

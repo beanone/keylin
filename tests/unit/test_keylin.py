@@ -448,7 +448,7 @@ async def test_on_after_request_verify_hook_if_sender_present(
         f"Delegating verification email sending for {dummy_user.email}" in caplog.text
     )
     mock_email_sender.assert_awaited_once_with(
-        to_email=dummy_user.email, token="test_token"
+        to_email=dummy_user.email, token="test_token", path="verify-email"
     )
 
 
@@ -510,8 +510,9 @@ async def test_default_keylin_email_sender_logs_warning(caplog):
     caplog.set_level(logging.WARNING)
     to_email_val = "to@example.com"
     token_val = "test_token_123"
+    path_val = "verify-email"
     await keylin_utils.default_keylin_email_sender(
-        to_email=to_email_val, token=token_val
+        to_email=to_email_val, token=token_val, path=path_val
     )
     expected_log_message = (
         f"Default Keylin email sender called for {to_email_val} with token {token_val}. "
