@@ -87,7 +87,7 @@ async def add_admin_user(session: AsyncSession) -> None:
         None
     """
     result = await session.execute(select(User).where(User.is_superuser is True))
-    admin = result.scalar_one_or_none()
+    admin = result.scalars().first()
     if admin:
         return
 
