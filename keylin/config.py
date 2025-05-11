@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     RESET_PASSWORD_SECRET: str | None = None
     VERIFICATION_SECRET: str | None = None
     ALLOWED_ORIGINS: Any = ""
+    ADMIN_EMAIL: str = "admin@example.com"
+    ADMIN_PASSWORD: str = "changeme"
+    ADMIN_FULL_NAME: str = "Admin"
 
     @computed_field
     def allowed_origins(self) -> list[str]:

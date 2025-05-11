@@ -78,17 +78,36 @@ async def test_lifespan_sets_dbstate(monkeypatch):
     mock_conn.run_sync = mock_run_sync
     mock_engine.begin.return_value = mock_conn_ctx
 
+    # Use a MagicMock that is callable and can be used as a context manager
+    class DummySessionMaker:
+        def __call__(self, *a, **kw):
+            class DummyContext:
+                async def __aenter__(self):
+                    return AsyncMock()
+
+                async def __aexit__(self, exc_type, exc, tb):
+                    pass
+
+            return DummyContext()
+
     monkeypatch.setattr(db, "create_async_engine", lambda *a, **kw: mock_engine)
-    monkeypatch.setattr(db, "async_sessionmaker", lambda *a, **kw: "session_maker")
+    monkeypatch.setattr(db, "async_sessionmaker", lambda *a, **kw: DummySessionMaker())
     monkeypatch.setattr(
-        db, "Settings", lambda: MagicMock(DATABASE_URL="sqlite+aiosqlite:///test.db")
+        db,
+        "Settings",
+        lambda: MagicMock(
+            DATABASE_URL="sqlite+aiosqlite:///test.db",
+            ADMIN_EMAIL="admin@example.com",
+            ADMIN_PASSWORD="changeme",
+            ADMIN_FULL_NAME="Admin",
+        ),
     )
     mock_run_sync.side_effect = [True]
 
     async with db.lifespan():
         pass
     assert db.DBState.engine is mock_engine
-    assert db.DBState.async_session_maker == "session_maker"
+    assert isinstance(db.DBState.async_session_maker, DummySessionMaker)
 
 
 @pytest.mark.asyncio
@@ -139,7 +158,18 @@ def test_lifespan_check_tables_exist_integration(monkeypatch):
     # Use a real in-memory SQLite database
     test_db_url = "sqlite+aiosqlite:///:memory:"
     monkeypatch.setattr(
-        db, "Settings", lambda: type("S", (), {"DATABASE_URL": test_db_url})()
+        db,
+        "Settings",
+        lambda: type(
+            "S",
+            (),
+            {
+                "DATABASE_URL": test_db_url,
+                "ADMIN_EMAIL": "admin@example.com",
+                "ADMIN_PASSWORD": "changeme",
+                "ADMIN_FULL_NAME": "Admin",
+            },
+        )(),
     )
     # Remove engine/sessionmaker mocks so real code runs
     db.DBState.engine = None
