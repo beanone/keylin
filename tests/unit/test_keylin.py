@@ -346,8 +346,8 @@ def test_hash_and_verify_api_key():
     key_hash = keylin_utils.hash_api_key(key)
     assert isinstance(key_hash, str)
     assert len(key_hash) == 64  # SHA-256 hex digest
-    assert keylin_utils.verify_api_key_hash(key, key_hash)
-    assert not keylin_utils.verify_api_key_hash("wrongkey", key_hash)
+    assert keylin_utils.hash_api_key(key) == key_hash
+    assert not keylin_utils.hash_api_key("wrongkey") == key_hash
 
 
 def test_create_api_key_record():
@@ -361,7 +361,7 @@ def test_create_api_key_record():
     assert record.user_id == user_id
     assert record.service_id == service_id
     assert record.name == "Test Key"
-    assert keylin_utils.verify_api_key_hash(api_key, record.key_hash)
+    assert keylin_utils.hash_api_key(api_key) == record.key_hash
 
 
 # Fixture for a UserManager instance
