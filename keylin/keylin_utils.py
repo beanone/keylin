@@ -5,7 +5,7 @@ import string
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from keylin.models import APIKey
+from keylin.models import APIKey, APIKeyStatus
 
 from .config import Settings
 
@@ -72,24 +72,11 @@ def hash_api_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
 
 
-def verify_api_key_hash(api_key: str, key_hash: str) -> bool:
-    """Verify that a plaintext API key matches a stored hash.
-
-    Args:
-        api_key (str): The plaintext API key.
-        key_hash (str): The stored hash.
-
-    Returns:
-        bool: True if the hash matches, False otherwise.
-    """
-    return hash_api_key(api_key) == key_hash
-
-
 def create_api_key_record(
     user_id: str,
     service_id: str,
     name: str | None = None,
-    status: str = "active",
+    status: APIKeyStatus = APIKeyStatus.ACTIVE,
     expires_at: datetime | None = None,
     last_used_at: datetime | None = None,
     id: str | None = None,
@@ -102,7 +89,7 @@ def create_api_key_record(
         user_id (str): The user ID.
         service_id (str): The target service ID.
         name (str | None): Optional label for the key.
-        status (str): Key status (default 'active').
+        status (APIKeyStatus): Key status (default ACTIVE).
         expires_at (datetime | None): Optional expiry.
         last_used_at (datetime | None): Optional last used.
         id (str | None): Optional key ID.
