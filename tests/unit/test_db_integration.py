@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from keylin import db, models
+from userdb import db, models
 
 
 @pytest.mark.asyncio

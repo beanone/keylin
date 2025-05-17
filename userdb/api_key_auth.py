@@ -5,9 +5,9 @@ from fastapi.security import APIKeyHeader
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from keylin.db import get_async_session
-from keylin.keylin_utils import hash_api_key
-from keylin.models import APIKey, User
+from userdb.db import get_async_session
+from userdb.models import APIKey, User
+from userdb.userdb_utils import hash_api_key
 
 api_key_header = APIKeyHeader(name="X-API-Key")
 

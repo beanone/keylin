@@ -3,8 +3,8 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from keylin.keylin_utils import create_api_key_record
-from keylin.models import APIKey
+from userdb.models import APIKey
+from userdb.userdb_utils import create_api_key_record
 
 
 async def create_api_key(

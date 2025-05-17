@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from keylin import db
+from userdb import db
 
 
 @pytest.mark.asyncio
@@ -166,7 +166,7 @@ async def test_get_async_session_raises_if_not_initialized(monkeypatch):
 async def test_get_user_db_yields_user_db(monkeypatch):
     """Test get_user_db yields a SQLAlchemyUserDatabase instance."""
     mock_session = MagicMock()
-    with patch("keylin.db.SQLAlchemyUserDatabase", autospec=True) as mock_db:
+    with patch("userdb.db.SQLAlchemyUserDatabase", autospec=True) as mock_db:
         gen = db.get_user_db(mock_session)
         user_db = await gen.__anext__()
         mock_db.assert_called_once_with(mock_session, db.User)
@@ -222,7 +222,7 @@ async def test_add_admin_user_skips_if_exists(monkeypatch):
 
     from sqlalchemy.ext.asyncio import AsyncSession  # For spec
 
-    from keylin.models import User
+    from userdb.models import User
 
     # 1. session is an AsyncMock
     session = AsyncMock(spec=AsyncSession)

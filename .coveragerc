@@ -1,7 +1,7 @@
 [run]
-source = keylin
+source = userdb
 omit =
-    keylin/_version.py
+    userdb/_version.py
     tests/*
     setup.py
 

@@ -12,12 +12,12 @@ from fastapi_users.authentication import (
 )
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 
-from . import keylin_utils
+from . import userdb_utils
 from .config import Settings
 from .db import get_user_db
 from .models import User
 
-logger = logging.getLogger("keylin.auth")
+logger = logging.getLogger("userdb.auth")
 
 settings = Settings()
 
@@ -147,7 +147,7 @@ async def get_user_manager(
     user_db: SQLAlchemyUserDatabase = Depends(get_user_db),
     settings_obj: Settings = Depends(get_settings),
     email_sender_impl: EmailSenderCallable = Depends(
-        keylin_utils.default_keylin_email_sender
+        userdb_utils.default_userdb_email_sender
     ),
 ) -> AsyncGenerator[UserManager, None]:
     """Dependency for providing a UserManager instance with the correct user DB."""

@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from keylin.apikey_manager import create_api_key, delete_api_key, list_api_keys
-from keylin.models import APIKey
+from userdb.apikey_manager import create_api_key, delete_api_key, list_api_keys
+from userdb.models import APIKey
 
 
 @pytest.fixture
@@ -36,7 +36,7 @@ async def test_create_api_key(fake_user_id, fake_api_key_instance, monkeypatch):
     mock_db_session.refresh = AsyncMock()
 
     monkeypatch.setattr(
-        "keylin.apikey_manager.create_api_key_record",
+        "userdb.apikey_manager.create_api_key_record",
         lambda **kwargs: ("plaintext_example_key", fake_api_key_instance),
     )
 

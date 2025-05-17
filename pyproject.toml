@@ -3,7 +3,7 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "keylin"
+name = "beanone-userdb"
 dynamic = ["version"]
 description = "User model and schema library for authentication services"
 readme = "README.md"
@@ -29,25 +29,25 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/beanone/keylin.git"
-Repository = "https://github.com/beanone/keylin.git"
+Homepage = "https://github.com/beanone/userdb.git"
+Repository = "https://github.com/beanone/userdb.git"
 
 [tool.hatch.build.targets.wheel]
-packages = ["keylin"]
+packages = ["userdb"]
 
 [tool.hatch.version]
 source = "vcs"
 
 [tool.hatch.build.hooks.vcs]
-version-file = "keylin/__init__.py"
+version-file = "userdb/__init__.py"
 
 [tool.pytest.ini_options]
-addopts = "-ra -q --cov=keylin --cov-report=term-missing"
+addopts = "-ra -q --cov=userdb --cov-report=term-missing"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["keylin"]
+source = ["userdb"]
 branch = true
 
 [tool.coverage.report]
@@ -81,7 +81,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["keylin"]
+known-first-party = ["userdb"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]  # noqa

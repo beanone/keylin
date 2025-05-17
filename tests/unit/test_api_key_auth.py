@@ -5,8 +5,8 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from keylin.api_key_auth import get_api_key_user
-from keylin.models import APIKey, User
+from userdb.api_key_auth import get_api_key_user
+from userdb.models import APIKey, User
 
 
 @pytest.fixture

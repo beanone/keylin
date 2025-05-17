@@ -5,15 +5,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 
-import keylin
-from keylin import auth, db, keylin_utils, models, schemas
-from keylin.config import Settings
-from keylin.models import User as KeylinUser  # Alias to avoid conflict
+import userdb
+from userdb import auth, db, models, schemas, userdb_utils
+from userdb.config import Settings
+from userdb.models import User as userdbUser  # Alias to avoid conflict
 
 
 def test_version():
-    assert hasattr(keylin, "__version__")
-    assert isinstance(keylin.__version__, str)
+    assert hasattr(userdb, "__version__")
+    assert isinstance(userdb.__version__, str)
 
 
 def test_user_model_fields():
@@ -186,7 +186,7 @@ async def test_get_async_session_yields_session():
 @pytest.mark.asyncio
 async def test_get_user_db_yields_user_db():
     mock_session = MagicMock()
-    with patch("keylin.db.SQLAlchemyUserDatabase", autospec=True) as mock_db:
+    with patch("userdb.db.SQLAlchemyUserDatabase", autospec=True) as mock_db:
         gen = db.get_user_db(mock_session)
         user_db = await gen.__anext__()
         mock_db.assert_called_once_with(mock_session, models.User)
@@ -335,7 +335,7 @@ def test_api_key_service_id_value_error():
 
 
 def test_generate_api_key_length_and_charset():
-    key = keylin_utils.generate_api_key(50)
+    key = userdb_utils.generate_api_key(50)
     assert isinstance(key, str)
     assert len(key) == 50
     assert all(c.isalnum() for c in key)
@@ -343,17 +343,17 @@ def test_generate_api_key_length_and_charset():
 
 def test_hash_and_verify_api_key():
     key = "testapikey123"
-    key_hash = keylin_utils.hash_api_key(key)
+    key_hash = userdb_utils.hash_api_key(key)
     assert isinstance(key_hash, str)
     assert len(key_hash) == 64  # SHA-256 hex digest
-    assert keylin_utils.hash_api_key(key) == key_hash
-    assert not keylin_utils.hash_api_key("wrongkey") == key_hash
+    assert userdb_utils.hash_api_key(key) == key_hash
+    assert not userdb_utils.hash_api_key("wrongkey") == key_hash
 
 
 def test_create_api_key_record():
     user_id = "user-uuid"
     service_id = "service-uuid"
-    api_key, record = keylin_utils.create_api_key_record(
+    api_key, record = userdb_utils.create_api_key_record(
         user_id=user_id, service_id=service_id, name="Test Key"
     )
     assert isinstance(api_key, str)
@@ -361,7 +361,7 @@ def test_create_api_key_record():
     assert record.user_id == user_id
     assert record.service_id == service_id
     assert record.name == "Test Key"
-    assert keylin_utils.hash_api_key(api_key) == record.key_hash
+    assert userdb_utils.hash_api_key(api_key) == record.key_hash
 
 
 # Fixture for a UserManager instance
@@ -394,7 +394,7 @@ def user_manager_instance(monkeypatch):
 # Fixture for a dummy User object
 @pytest.fixture
 def dummy_user():
-    return KeylinUser(
+    return userdbUser(
         id=uuid.uuid4(),
         email="test@example.com",
         hashed_password="hashed",
@@ -462,7 +462,7 @@ async def test_on_after_request_verify_hook_if_no_sender(
     mock_user_db = MagicMock(spec=SQLAlchemyUserDatabase)
 
     # 1. Test the __init__ logging (optional here, but good to be aware of)
-    # with caplog.at_level(logging.WARNING, logger="keylin.auth"):
+    # with caplog.at_level(logging.WARNING, logger="userdb.auth"):
     #     manager_for_init_check = auth.UserManager(
     #         user_db=mock_user_db,
     #         settings_obj=settings_obj,
@@ -487,7 +487,7 @@ async def test_on_after_request_verify_hook_if_no_sender(
     # Also, no error should occur if self._send_email is None and an attempt was made to call it.
 
     # Spy on the logger for this specific hook call
-    with caplog.at_level(logging.INFO, logger="keylin.auth"):
+    with caplog.at_level(logging.INFO, logger="userdb.auth"):
         await manager.on_after_request_verify(dummy_user, "test_token")
 
     # Assert that the specific INFO log from within the 'if self._send_email:' block was NOT emitted
@@ -503,20 +503,20 @@ async def test_on_after_request_verify_hook_if_no_sender(
     # and the delegating log is missing is sufficient proof the branch was skipped.
 
 
-# Test for default_keylin_email_sender (line 136)
+# Test for default_userdb_email_sender (line 136)
 @pytest.mark.asyncio
-async def test_default_keylin_email_sender_logs_warning(caplog):
-    """Test default_keylin_email_sender logs a warning."""
+async def test_default_userdb_email_sender_logs_warning(caplog):
+    """Test default_userdb_email_sender logs a warning."""
     caplog.set_level(logging.WARNING)
     to_email_val = "to@example.com"
     token_val = "test_token_123"
     path_val = "test-path"
-    await keylin_utils.default_keylin_email_sender(
+    await userdb_utils.default_userdb_email_sender(
         to_email=to_email_val, token=token_val, path=path_val
     )
     # Adjust expected message based on the AssertionError diff
     expected_log_message = (
-        f"Default Keylin email sender called for {to_email_val} with token {token_val}. Path: {path_val}"
+        f"Default userdb email sender called for {to_email_val} with token {token_val}. Path: {path_val}"
         f"Email not sent. Please override this dependency."
     )
     assert len(caplog.records) == 1
@@ -561,7 +561,7 @@ async def test_on_after_request_verify_email_send_exception(
     for record in caplog.records:
         if (
             record.levelname == "ERROR"
-            and record.name == "keylin.auth"
+            and record.name == "userdb.auth"
             and f"Failed to send verification email to {dummy_user.email}: {error_message}"
             in record.message
         ):
@@ -589,7 +589,7 @@ async def test_on_after_forgot_password_email_send_exception(
     for record in caplog.records:
         if (
             record.levelname == "ERROR"
-            and record.name == "keylin.auth"
+            and record.name == "userdb.auth"
             and f"Failed to send password reset email to {dummy_user.email}: {error_message}"
             in record.message
         ):
