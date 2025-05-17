@@ -5,11 +5,11 @@ import string
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from keylin.models import APIKey, APIKeyStatus
+from userdb.models import APIKey, APIKeyStatus
 
 from .config import Settings
 
-# Moved from keylin.auth
+# Moved from userdb.auth
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +33,7 @@ def create_jwt_for_user(
     """
     import jwt
 
-    from keylin.config import Settings
+    from userdb.config import Settings
 
     settings = settings or Settings()
     now = datetime.now(UTC)
@@ -139,10 +139,10 @@ def create_api_key_record(
     return api_key, record
 
 
-async def default_keylin_email_sender(*, to_email: str, token: str, path: str) -> None:
+async def default_userdb_email_sender(*, to_email: str, token: str, path: str) -> None:
     """Placeholder email sender. Logs a warning and performs no action."""
     logger.warning(
-        f"Default Keylin email sender called for {to_email} with token {token}. "
+        f"Default userdb email sender called for {to_email} with token {token}. "
         f"Path: {path}"
         f"Email not sent. Please override this dependency."
     )

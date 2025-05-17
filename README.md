@@ -1,11 +1,11 @@
-# keylin
+# userdb
 
-[![Python Versions](https://img.shields.io/pypi/pyversions/keylin)](https://pypi.org/project/keylin)
+[![Python Versions](https://img.shields.io/pypi/pyversions/beanone-userdb)](https://pypi.org/project/beanone-userdb)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://github.com/beanone/keylin/actions/workflows/tests.yml/badge.svg)](https://github.com/beanone/keylin/actions?query=workflow%3Atests)
-[![Coverage](https://codecov.io/gh/beanone/keylin/branch/main/graph/badge.svg)](https://codecov.io/gh/beanone/keylin)
+[![Tests](https://github.com/beanone/userdb/actions/workflows/tests.yml/badge.svg)](https://github.com/beanone/userdb/actions?query=workflow%3Atests)
+[![Coverage](https://codecov.io/gh/beanone/userdb/branch/main/graph/badge.svg)](https://codecov.io/gh/beanone/userdb)
 [![Code Quality](https://img.shields.io/badge/code%20style-ruff-000000)](https://github.com/astral-sh/ruff)
-[![PyPI version](https://img.shields.io/pypi/v/keylin)](https://pypi.org/project/keylin)
+[![PyPI version](https://img.shields.io/pypi/v/beanone-userdb)](https://pypi.org/project/beanone-userdb)
 
 ## Features
 
@@ -30,16 +30,16 @@
 ## Installation
 
 ```bash
-pip install keylin
+pip install beanone-userdb
 ```
 
 ## Usage
 
 ```python
-from keylin.models import User
+from userdb.models import User
 from fastapi import FastAPI, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from keylin.db import get_async_session
+from userdb.db import get_async_session
 
 app = FastAPI()
 
@@ -56,7 +56,7 @@ async def get_user(user_id: str, session: AsyncSession = Depends(get_async_sessi
 
 ## API Key Management
 
-Keylin includes an internal API key management module (`keylin.apikey_manager`) that provides async functions for creating, listing, and deleting API keys. These functions encapsulate all business logic and database operations for API key management and are intended for use within the keylin codebase.
+userdb includes an internal API key management module (`userdb.apikey_manager`) that provides async functions for creating, listing, and deleting API keys. These functions encapsulate all business logic and database operations for API key management and are intended for use within the userdb codebase.
 
 - `create_api_key(user_id, service_id, session, name=None, expires_at=None)`
 - `list_api_keys(user_id, session)`
@@ -68,29 +68,29 @@ All functions are async and require an `AsyncSession` for database access.
 
 ### Typical Architecture
 
-A recommended architecture for a login/authentication service using `keylin`:
+A recommended architecture for a login/authentication service using `userdb`:
 
 ```mermaid
 graph TD
     A[Client App / Frontend]
     B[API Gateway / HTTPS Proxy]
-    C[FastAPI Login Service - uses keylin]
+    C[FastAPI Login Service - uses userdb]
     D[Database - PostgreSQL, etc.]
     A --> B
     B --> C
     C --> D
 ```
 
-- **keylin** provides the user model, schemas, and authentication logic.
-- The login service is a FastAPI app that imports keylin and wires up routers.
-- Other services can import keylin to share the user model and schemas for consistent user data handling.
+- **userdb** provides the user model, schemas, and authentication logic.
+- The login service is a FastAPI app that imports userdb and wires up routers.
+- Other services can import userdb to share the user model and schemas for consistent user data handling.
 
 ### Example FastAPI Login Service
 
 ```python
 from fastapi import FastAPI
-from keylin.auth import auth_backend, fastapi_users, get_user_manager
-from keylin.schemas import UserRead, UserCreate
+from userdb.auth import auth_backend, fastapi_users, get_user_manager
+from userdb.schemas import UserRead, UserCreate
 
 app = FastAPI()
 
@@ -102,13 +102,13 @@ app.include_router(fastapi_users.get_users_router(UserRead, UserRead), prefix="/
 
 ### Configuring Email Sending (for Password Reset & Verification)
 
-The `keylin` library's `UserManager` supports sending emails for password resets and email verifications. This feature is optional and depends on you providing an email sending implementation.
+The `userdb` library's `UserManager` supports sending emails for password resets and email verifications. This feature is optional and depends on you providing an email sending implementation.
 
 **1. Email Sender Interface:**
 
-`keylin` defines a protocol for the email sender:
+`userdb` defines a protocol for the email sender:
 ```python
-# keylin.auth.EmailSenderCallable
+# userdb.auth.EmailSenderCallable
 class EmailSenderCallable(Protocol):
     async def __call__(self, *, to_email: str, token: str, path: str) -> None:
         # path will be a string like "reset-password" or "verify-email"
@@ -126,13 +126,13 @@ Your implementation is responsible for:
 
 **2. Default Placeholder:**
 
-By default, `keylin` uses a placeholder email sender that logs a warning and does not send any emails. This is located at `keylin.keylin_utils.default_keylin_email_sender`. Its signature now also includes the `path` argument.
+By default, `userdb` uses a placeholder email sender that logs a warning and does not send any emails. This is located at `userdb.userdb_utils.default_userdb_email_sender`. Its signature now also includes the `path` argument.
 
 **3. Enabling Email Features:**
 
-For password reset and email verification features to be enabled in `keylin` (and for `fastapi-users` to expose the related routes):
+For password reset and email verification features to be enabled in `userdb` (and for `fastapi-users` to expose the related routes):
 - You **must** provide a working email sender implementation that conforms to the `EmailSenderCallable` protocol.
-- Your `keylin.config.Settings` object (or a subclass used by your application) **must** have the `RESET_PASSWORD_SECRET` and `VERIFICATION_SECRET` attributes set (they default to `JWT_SECRET` if not explicitly provided).
+- Your `userdb.config.Settings` object (or a subclass used by your application) **must** have the `RESET_PASSWORD_SECRET` and `VERIFICATION_SECRET` attributes set (they default to `JWT_SECRET` if not explicitly provided).
 
 **4. Injecting Your Custom Email Sender:**
 
@@ -141,9 +141,9 @@ To use your own email sending logic, you'll override the default dependency in y
 ```python
 # In your main FastAPI application file (e.g., app/main.py or src/your_project/main.py)
 from fastapi import FastAPI
-from keylin.auth import fastapi_users, auth_backend # From keylin library
-from keylin.schemas import UserRead, UserCreate    # From keylin library
-from keylin import keylin_utils                    # To access the default sender for overriding
+from userdb.auth import fastapi_users, auth_backend # From userdb library
+from userdb.schemas import UserRead, UserCreate    # From userdb library
+from userdb import userdb_utils                    # To access the default sender for overriding
 
 # 1. Define your custom email sender function
 # (This could be in a separate services/email.py module in your project)
@@ -178,7 +178,7 @@ async def my_custom_email_sender(*, to_email: str, token: str, path: str) -> Non
 app = FastAPI()
 
 # 2. Override the default email sender dependency
-app.dependency_overrides[keylin_utils.default_keylin_email_sender] = my_custom_email_sender
+app.dependency_overrides[userdb_utils.default_userdb_email_sender] = my_custom_email_sender
 
 # 3. Include fastapi-users routers (these will now use your_custom_email_sender)
 app.include_router(fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"])
@@ -191,16 +191,16 @@ app.include_router(fastapi_users.get_users_router(UserRead, UserRead), prefix="/
 app.include_router(fastapi_users.get_reset_password_router(), prefix="/auth", tags=["auth"])
 app.include_router(fastapi_users.get_verify_router(UserRead), prefix="/auth", tags=["auth"])
 
-# Your application's settings (e.g., from keylin.config.Settings or a subclass)
+# Your application's settings (e.g., from userdb.config.Settings or a subclass)
 # should define its own FRONTEND_APP_URL if your custom email sender needs it for link construction.
-# Keylin's UserManager enables password/verification features if an email_sender
+# userdb's UserManager enables password/verification features if an email_sender
 # is provided and the necessary token secrets are available.
 ```
 
 **Important Note on Email Content:**
 (This paragraph can be removed or simplified as the `path` argument now helps differentiate)
 
-This setup ensures that `keylin` remains decoupled from specific email sending implementations and URL structures, while providing the necessary hooks for downstream applications to integrate their own email services.
+This setup ensures that `userdb` remains decoupled from specific email sending implementations and URL structures, while providing the necessary hooks for downstream applications to integrate their own email services.
 
 ### Environment Variables (Required for Production)
 - `JWT_SECRET`: Secret key for JWT signing (**required**; application will raise an error if not set)
@@ -219,7 +219,7 @@ This setup ensures that `keylin` remains decoupled from specific email sending i
 - **Audit Logging:** Log authentication events for security monitoring.
 
 ### Extending the User Model
-- You can add fields to the `User` model and corresponding Pydantic schemas in your own code or by forking/extending keylin.
+- You can add fields to the `User` model and corresponding Pydantic schemas in your own code or by forking/extending userdb.
 - All models and schemas use type annotations and are compatible with FastAPI and Pydantic.
 
 ### User Model & Database Schema
@@ -260,21 +260,21 @@ This setup ensures that `keylin` remains decoupled from specific email sending i
 
 ### Configuration Usage
 
-The `keylin.config.Settings` class provides all configuration via environment variables or a `.env` file. **There is no longer a global `settings` singleton.**
+The `userdb.config.Settings` class provides all configuration via environment variables or a `.env` file. **There is no longer a global `settings` singleton.**
 
 - To use configuration, import and instantiate `Settings` directly:
 
 ```python
-from keylin.config import Settings
+from userdb.config import Settings
 settings = Settings()
 ```
 
 - If you are building a service that needs additional configuration, subclass `Settings`:
 
 ```python
-from keylin.config import Settings as KeylinSettings
+from userdb.config import Settings as UserdbSettings
 
-class MyServiceSettings(KeylinSettings):
+class MyServiceSettings(UserdbSettings):
     MY_SERVICE_API_KEY: str
 
 settings = MyServiceSettings()
@@ -287,7 +287,7 @@ settings = MyServiceSettings()
 - The test suite sets `JWT_SECRET` automatically for all tests (see `tests/conftest.py`).
 - All code and tests should instantiate `Settings` directly as needed.
 - There is no global singleton; each test or module should create its own `Settings` instance if configuration is needed.
-- See `tests/unit/test_keylin.py` and `tests/unit/test_apikey_manager.py` for example tests and mocking patterns.
+- See `tests/unit/test_userdb.py` and `tests/unit/test_apikey_manager.py` for example tests and mocking patterns.
 
 ### Setting Up the User Database
 
@@ -301,9 +301,9 @@ alembic revision --autogenerate -m "create user table"
 alembic upgrade head
 ```
 
-Make sure your Alembic `env.py` includes the keylin model's metadata:
+Make sure your Alembic `env.py` includes the userdb model's metadata:
 ```python
-from keylin.models import Base
+from userdb.models import Base
 
 target_metadata = Base.metadata
 ```
@@ -312,7 +312,7 @@ target_metadata = Base.metadata
 For local development or quick tests, you can create the tables directly using SQLAlchemy:
 
 ```python
-from keylin.models import Base
+from userdb.models import Base
 from sqlalchemy import create_engine
 
 engine = create_engine("sqlite:///./test.db")  # Or your DB URL
@@ -323,7 +323,7 @@ Base.metadata.create_all(engine)
 
 ### Admin User Account Setup
 
-After the user tables are created (either via Alembic or programmatically), `keylin` will automatically create an admin (superuser) account if one does not already exist. This ensures you always have an initial admin user for your application.
+After the user tables are created (either via Alembic or programmatically), `userdb` will automatically create an admin (superuser) account if one does not already exist. This ensures you always have an initial admin user for your application.
 
 **Default admin credentials:**
 - Email: `admin@example.com`

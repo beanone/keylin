@@ -1,9 +1,9 @@
 import uuid
 from datetime import UTC, datetime, timedelta, timezone
 
-from keylin.config import Settings
-from keylin.keylin_utils import create_api_key_record, create_jwt_for_user
-from keylin.models import APIKey  # Assuming APIKey model is accessible for type hinting
+from userdb.config import Settings
+from userdb.models import APIKey  # Assuming APIKey model is accessible for type hinting
+from userdb.userdb_utils import create_api_key_record, create_jwt_for_user
 
 
 def test_create_jwt_for_user():
